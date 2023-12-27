@@ -1,4 +1,6 @@
 #include <cstdint>
+#include <iostream>
+
 #include <windows.h>
 #include <winternl.h>
 /*
@@ -8,6 +10,7 @@ typedef struct _UNICODE_STRING {
   PWSTR  Buffer;
 } UNICODE_STRING, *PUNICODE_STRING;
 */
+
 typedef struct FULL_PEB_LDR_DATA
 {
    ULONG Length;
@@ -65,6 +68,16 @@ void infect(void)
 
    PFULL_PEB_LDR_DATA ldr = reinterpret_cast<PFULL_PEB_LDR_DATA>(peb->Ldr);
    PLIST_ENTRY list_entry = ldr->InLoadOrderModuleList.Flink;
+
+   while (list_entry != nullptr)
+   {
+      /* do the needful */
+      PFULL_LDR_DATA_TABLE_ENTRY table_entry = reinterpret_cast<PFULL_LDR_DATA_TABLE_ENTRY>(list_entry);
+
+      std::wcout << table_entry->BaseDllName.Buffer << std::endl;
+
+      list_entry = table_entry->InOrderLinks.Flink;
+   }
 }
 
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
