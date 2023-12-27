@@ -58,7 +58,7 @@ typedef struct FULL_LDR_DATA_TABLE_ENTRY
      LIST_ENTRY StaticLinks;
 } FULL_LDR_DATA_TABLE_ENTRY, *PFULL_LDR_DATA_TABLE_ENTRY;
 
-std::uint32 fnv321a(const char *string)
+std::uint32_t fnv321a(const char *string)
 {
    register std::uint32_t hashval = 0x811c9dc5;
 
