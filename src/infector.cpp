@@ -1,6 +1,12 @@
 #include <cstdint>
 #include <windows.h>
 
+typedef struct _UNICODE_STRING {
+  USHORT Length;
+  USHORT MaximumLength;
+  PWSTR  Buffer;
+} UNICODE_STRING, *PUNICODE_STRING;
+
 typedef struct FULL_PEB_LDR_DATA
 {
    ULONG Length;
