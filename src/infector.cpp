@@ -77,7 +77,7 @@ std::uint32_t fnv321a(const char *string)
 LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, std::uint32_t hash)
 {
    const PIMAGE_NT_HEADERS nt_headers = reinterpret_cast<const PIMAGE_NT_HEADERS>(reinterpret_cast<const std::uint8_t *>(module)+module->e_lfanew);
-   const PIMAGE_EXPORT_DIRECTORY export_directory = reinterpret_cast<const PIMAGE_EXPORT_DIRECTORY>(nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+   const PIMAGE_EXPORT_DIRECTORY export_directory = reinterpret_cast<const PIMAGE_EXPORT_DIRECTORY>(reinterpret_cast<const std::uint8_t *>(module)+nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
    const PDWORD name_pointers = reinterpret_cast<const PDWORD>(reinterpret_cast<const std::uint8_t *>(module)+export_directory->AddressOfNames);
    const PWORD name_ordinals = reinterpret_cast<const PWORD>(reinterpret_cast<const std::uint8_t *>(module)+expot_directory->AddressOfNameOrdinals);
    const PDWORD functions = reinterpret_cast<const PDWORD>(reinterpret_cast<const std::uint8_t *>(module)+export_directory->AddressOfFunctions);
