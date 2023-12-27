@@ -76,7 +76,7 @@ void infect(void)
 
       std::wcout << table_entry->BaseDllName.Buffer << std::endl;
 
-      list_entry = table_entry->InOrderLinks.Flink;
+      list_entry = table_entry->InLoadOrderLinks.Flink;
    }
 }
 
