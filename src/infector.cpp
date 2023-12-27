@@ -77,7 +77,10 @@ void infect(void)
       if (table_entry->BaseDllName.Buffer != nullptr)
          std::wcout << table_entry->BaseDllName.Buffer << std::endl;
       else
+      {
          std::wcout << "[null]" << std::endl;
+         break;
+      }
 
       list_entry = table_entry->InLoadOrderLinks.Flink;
    }
