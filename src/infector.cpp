@@ -71,19 +71,22 @@ void infect(void)
 
    while (list_entry != nullptr)
    {
-      /* do the needful */
       PFULL_LDR_DATA_TABLE_ENTRY table_entry = reinterpret_cast<PFULL_LDR_DATA_TABLE_ENTRY>(list_entry);
 
-      if (table_entry->BaseDllName.Buffer != nullptr)
-         std::wcout << table_entry->BaseDllName.Buffer << std::endl;
-      else
+      if (table_entry->BaseDllName.Buffer == nullptr)
       {
-         std::wcout << "[null]" << std::endl;
-         break;
+         list_entry = nullptr;
+         continue;
       }
 
+      if (*reinterpret_cast<std::uint64_t *>(table_entry->BaseDllName.Buffer) == *reinterpret_cast<std::uint64_t *>("K\x00E\x00R\x00N\x00"))
+         break;
+      
       list_entry = table_entry->InLoadOrderLinks.Flink;
    }
+
+   if (list_entry != nullptr)
+      std::wcout << "found kernel32" << std::endl;
 }
 
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
