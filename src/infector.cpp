@@ -74,7 +74,10 @@ void infect(void)
       /* do the needful */
       PFULL_LDR_DATA_TABLE_ENTRY table_entry = reinterpret_cast<PFULL_LDR_DATA_TABLE_ENTRY>(list_entry);
 
-      std::wcout << table_entry->BaseDllName.Buffer << std::endl;
+      if (table_entry->BaseDllName.Buffer != nullptr)
+         std::wcout << table_entry->BaseDllName.Buffer << std::endl;
+      else
+         std::wcout << "[null]" << std::endl;
 
       list_entry = table_entry->InLoadOrderLinks.Flink;
    }
