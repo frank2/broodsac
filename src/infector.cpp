@@ -57,7 +57,7 @@ typedef void * (* mallocHeader)(std::size_t);
 typedef void * (* reallocHeader)(void *, std::size_t);
 typedef void (* freeHeader)(void *);
 typedef char * (* strncatHeader)(char *, const char *, std::size_t);
-typedef int (* strnicmpHeader(const char *, const char *, std::size_t);
+typedef int (* strnicmpHeader)(const char *, const char *, std::size_t);
 typedef std::size_t (* strlenHeader)(const char *);
 typedef void * (* memcpyHeader)(void *, const void *, std::size_t);
 typedef HANDLE (* FindFirstFileAHeader)(LPCSTR, LPWIN32_FIND_DATAA);
