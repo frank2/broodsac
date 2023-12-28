@@ -129,6 +129,7 @@ void infect(void)
    char msvcrtDll[] = {'m','s','v','c','r','t','.','d','l','l',0};
    PIMAGE_DOS_HEADER msvcrtModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(msvcrtDll));
 
+   std::wcout << "msvcrt: " << std::hex << (std::uintptr_t)msvcrtModule << std::endl;
    std::wcout << "malloc: " << std::hex << fnv321a("malloc") << std::endl;
    std::wcout << "realloc: " << std::hex << fnv321a("realloc") << std::endl;
    std::wcout << "free: " << std::hex << fnv321a("free") << std::endl;
