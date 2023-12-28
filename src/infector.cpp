@@ -169,8 +169,36 @@ int infect(void)
    char **search_stack = reinterpret_cast<char **>(malloc(sizeof(char *) * search_stack_size));
    search_stack[0] = search_root;
 
-   for (std::size_t i=0; i<search_stack_size; ++i)
-      std::wcout << i << ": " << search_stack[i] << std::endl;
+   while (search_stack_size > 0)
+   {
+      char *search_visit = search_stack[--search_stack_size];
+
+      if (search_stack_size == 0)
+      {
+         free(search_stack);
+         search_stack = nullptr;
+      }
+      else
+         search_stack = reinterpret_cast<char **>(realloc(search_stack, sizeof(char *) * search_stack_size));
+      
+      WIN32_FIND_DATAA find_data;
+      HANDLE find_handle = findFirstFile(search_visit, &find_data);
+
+      if (find_handle == INVALID_HANDLE_VALUE)
+         goto free_and_continue;
+
+      std::wcout << "Enumerating " << search_visit << std::endl;
+      
+      do
+      {
+         std::wcout << "\t" << find_data.cFileName << std::endl;
+      } while (findNextFile(find_handle, &find_data));
+
+      std::wcout << std::endl;
+
+   free_and_continue:
+      free(search_visit);
+   }
 
    return 0;
 }
