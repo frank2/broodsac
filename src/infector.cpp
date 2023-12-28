@@ -197,9 +197,7 @@ int infect(void)
       do
       {
          std::wcout << "\t" << find_data.cFileName << std::endl;
-
-         if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0)
-            std::wcout << "\t\tIs a directory" << std::endl;
+         std::wcout << "\t\t" << std::hex << find_data.dwFileAttributes << std::endl;
          
       } while (findNextFile(find_handle, &find_data));
 
