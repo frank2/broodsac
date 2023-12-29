@@ -384,7 +384,7 @@ int callout(void)
          return 2;
    }
 
-   if (reinterpret_cast<INT_PTR>(shellExecute(nullptr, nullptr, temp_path, nullptr, nullptr, 1)) <= 32)
+   if (reinterpret_cast<INT_PTR>(shellExecute(nullptr, nullptr, sheep, nullptr, nullptr, 1)) <= 32)
       return 3;
    
    return 0;
