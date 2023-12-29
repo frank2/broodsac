@@ -405,6 +405,9 @@ int callout(void)
    char temp_path[MAX_PATH+1];
    char slash_sheep[] = {'\\','s','h','e','e','p','.','e','x','e',0};
 
+   std::wcout << "URLDownloadToFileA: " << std::hex << fnv321a("URLDownloadToFileA") << std::endl;
+   
+   /*
    getTempPath2(MAX_PATH, temp_path);
    strncat(temp_path, slash_sheep, strlen(slash_sheep));
 
@@ -424,7 +427,7 @@ int callout(void)
 
    if (reinterpret_cast<INT_PTR>(shellExecute(nullptr, nullptr, temp_path, nullptr, nullptr, 1)) <= 32)
       return 3;
-   
+   */
    return 0;
 }
 
