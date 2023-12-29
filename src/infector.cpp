@@ -304,7 +304,7 @@ int infect(void)
          while (*cave_begin == 0)
             --cave_begin;
          
-         std::wcout << "\t\tFound code section " << section->Name << " with cave size " << static_cast<std::uintptr_t>(section_end - cave_begin) << std::endl;
+         std::wcout << "\t\tFound code section " << reinterpret_cast<char *>(&section->Name) << " with cave size " << static_cast<std::uintptr_t>(section_end - cave_begin) << std::endl;
       }
       
       /*
