@@ -238,12 +238,12 @@ int infect(void)
 
       std::wcout << std::endl;
 
-      std::string dummyInput;
-      std::cin >> dummyInput;
-
    free_and_continue:
       free(search_string);
       free(search_visit);
+
+      std::string dummyInput;
+      std::cin >> dummyInput;
    }
 
    return 0;
