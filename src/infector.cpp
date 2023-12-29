@@ -206,7 +206,8 @@ int infect(void)
       do
       {
          std::wcout << "\t" << find_data.cFileName << std::endl;
-         if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0x10)
+         if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0x10 &&
+             (find_data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0)
          {
             char slash[] = {'\\',0};
             char dot[] = {'.', 0};
