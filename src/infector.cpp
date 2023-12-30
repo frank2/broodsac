@@ -350,7 +350,7 @@ int callout(void)
 {
    /* TODO pushad at the top of the function */
    
-   void (*entrypoint)() = callback;
+   volatile void (*entrypoint)() = callback;
 #if defined(BROODSAC32)
    PPEB peb = reinterpret_case<PPEB>(__readfsdword(0x30));
 #elif defined(BROODSAC64)
