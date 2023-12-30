@@ -93,7 +93,7 @@ get_proc_by_hash:
    push rsi
    push rdi
    movsxd rax, dword [rcx+0x3c] ; e_lfanew
-   mov r8, dword [rax+rcx+0x88] ; nt_headers->OptionalHeader.DataDirectory[IMAGE_EXPORT_DIRECTORY] rva
+   mov r8d, dword [rax+rcx+0x88] ; nt_headers->OptionalHeader.DataDirectory[IMAGE_EXPORT_DIRECTORY] rva
    add r8, rcx                      ; pointer to the export directory
    xor r9d, r9d
    mov r10d, dword [r8+0x20]    ; ExportDirectory.AddressOfNames
