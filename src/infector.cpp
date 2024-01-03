@@ -278,6 +278,11 @@ int infect(void)
          std::wcout << "\tExecutable " << executable << " has a TLS directory." << std::endl;
       }
 
+      if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress == 0)
+         std::wcout << "\t\tExecutable has no relocations." << std::endl;
+      else
+         std::wcout << "\t\tExecutable has relocations." << std::endl;
+
       std::size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
       IMAGE_SECTION_HEADER *section_table = reinterpret_cast<PIMAGE_SECTION_HEADER>(exe_buffer+dos_header->e_lfanew+nt_headers_size);
 
