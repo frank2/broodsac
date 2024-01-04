@@ -9,4 +9,4 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 add_subdirectory(tls)
 add_subdirectory(notls)
-add_dependencies(infectables infectables_tls infectables_notls)
+#add_dependencies(infectables infectables_tls infectables_notls)
