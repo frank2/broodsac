@@ -1,11 +1,12 @@
 #include <iostream>
+#include <cstdio>
 
 #include <windows.h>
 
 VOID WINAPI tls_callback(PVOID dllHandle, DWORD reason, PVOID reserved)
 {
    if (reason == DLL_PROCESS_ATTACH)
-      std::cout << "* tls callback" << std::endl;
+      puts("* tls callback");
 }
 
 #ifdef _M_AMD64
