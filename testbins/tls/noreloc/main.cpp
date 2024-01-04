@@ -23,6 +23,7 @@ EXTERN_C const PIMAGE_TLS_CALLBACK p_tls_callback = tls_callback;
 #pragma data_seg(".CRT$XLAAA")
 EXTERN_C PIMAGE_TLS_CALLBACK p_tls_callback = tls_callback;
 #pragma data_seg(pop)
+#endif
 
 int main(int argc, char *argv[])
 {
