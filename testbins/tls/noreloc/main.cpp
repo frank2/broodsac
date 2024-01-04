@@ -3,10 +3,12 @@
 
 #include <windows.h>
 
+bool TLS_INIT = false;
+
 VOID WINAPI tls_callback(PVOID dllHandle, DWORD reason, PVOID reserved)
 {
    if (reason == DLL_PROCESS_ATTACH)
-      puts("* tls callback");
+      TLS_INIT = true;
 }
 
 #ifdef _M_AMD64
@@ -28,6 +30,7 @@ EXTERN_C PIMAGE_TLS_CALLBACK p_tls_callback = tls_callback;
 
 int main(int argc, char *argv[])
 {
+   std::cout << "* tls_init: " << TLS_INIT << std::endl;
    std::cout << "* tls" << std::endl;
    std::cout << "* no reloc" << std::endl;
    return 0;
