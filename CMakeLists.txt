@@ -22,7 +22,7 @@ source_group(TREE "${PROJECT_SOURCE_DIR}" PREFIX "Resource Files" FILES ${RES_FI
 add_executable(broodsac_infector WIN32 src/infector.cpp)
 #target_sources(broodsac PRIVATE ${RES_FILES})
 
-add_compile_definitions(BROODSAC64)
+add_compile_definitions(BROODSACDEBUG)
 add_compile_definitions(UNICODE)
 add_compile_definitions(_UNICODE)
 
