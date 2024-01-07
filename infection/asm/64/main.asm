@@ -1,9 +1,9 @@
 section .text
 [BITS 64]
 
-global infection
+global main
    
-infection:
+main:
    mov [rsp+0x10],rsi
    mov [rsp+8],rdi
    mov [rsp],rbp
