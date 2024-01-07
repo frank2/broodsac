@@ -30,4 +30,5 @@ add_compile_definitions(_UNICODE)
 
 target_include_directories(broodsac_infector PUBLIC
   "${PROJECT_SOURCE_DIR}/src"
+  "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>"
 )
