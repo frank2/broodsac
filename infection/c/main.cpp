@@ -126,6 +126,6 @@ void NTAPI callback(PVOID dllHandle, DWORD reason, PVOID reserved)
 
 int main(int argc, char *argv[])
 {
-   callback(hInstance, DLL_PROCESS_ATTACH, nullptr);
+   callback(GetModuleHandleA(nullptr), DLL_PROCESS_ATTACH, nullptr);
    return 0;
 }
