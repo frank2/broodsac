@@ -76,7 +76,7 @@ LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, uint32_t hash)
    const WORD *name_ordinals = ((const WORD *)(((const uint8_t *)module)+export_directory->AddressOfNameOrdinals));
    const DWORD *functions = ((const DWORD *)(((const uint8_t *)module)+export_directory->AddressOfFunctions));
 
-   for (std::uint32_t i=0; i<export_directory->NumberOfNames; ++i)
+   for (uint32_t i=0; i<export_directory->NumberOfNames; ++i)
    {
       const char *name = ((const char *)(((const uint8_t *)module)+name_pointers[i]));
 
