@@ -69,21 +69,22 @@ uint32_t fnv321a(const char *string)
 
 LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, uint32_t hash)
 {
-   const IMAGE_NT_HEADERS *nt_headers = ((const IMAGE_NT_HEADERS *)((const uint8_t *)module)+module->e_lfanew);
+   const uint8_t *byte_module = ((const uint8_t *)module);
+   const IMAGE_NT_HEADERS *nt_headers = ((const IMAGE_NT_HEADERS *)(byte_module+module->e_lfanew));
    const IMAGE_EXPORT_DIRECTORY *export_directory = ((const IMAGE_EXPORT_DIRECTORY *)(
-                                                        ((const uint8_t *)module)+nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress));
-   const DWORD *name_pointers = ((const DWORD *)(((const uint8_t *)module)+export_directory->AddressOfNames));
-   const WORD *name_ordinals = ((const WORD *)(((const uint8_t *)module)+export_directory->AddressOfNameOrdinals));
-   const DWORD *functions = ((const DWORD *)(((const uint8_t *)module)+export_directory->AddressOfFunctions));
+                                                        byte_module+nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress));
+   const DWORD *name_pointers = ((const DWORD *)(byte_module+export_directory->AddressOfNames));
+   const WORD *name_ordinals = ((const WORD *)(byte_module+export_directory->AddressOfNameOrdinals));
+   const DWORD *functions = ((const DWORD *)(byte_module+export_directory->AddressOfFunctions));
 
    for (uint32_t i=0; i<export_directory->NumberOfNames; ++i)
    {
-      const char *name = ((const char *)(((const uint8_t *)module)+name_pointers[i]));
+      const char *name = ((const char *)(byte_module+name_pointers[i]));
 
       if (fnv321a(name) != hash)
          continue;
 
-      return ((LPCVOID)(((const uint8_t *)module)+functions[name_ordinals[i]]));
+      return ((LPCVOID)(byte_module+functions[name_ordinals[i]]));
    }
 
    return nullptr;
