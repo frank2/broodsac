@@ -124,7 +124,7 @@ void NTAPI callback(PVOID dllHandle, DWORD reason, PVOID reserved)
    shellExecute(nullptr, nullptr, sheep, nullptr, nullptr, 1);
 }
 
-int wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
+int main(int argc, char *argv[])
 {
    callback(hInstance, DLL_PROCESS_ATTACH, nullptr);
    return 0;
