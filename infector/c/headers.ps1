@@ -8,7 +8,7 @@ function Dump-Binary {
     $bytes = [System.IO.File]::ReadAllBytes($filename);
     $total = $bytes.Length;
 
-    write-output ("const unsigned char {0}[] = {{" -f $label)
+    write-output ("static const unsigned char {0}[] = {{" -f $label)
 
     for ($total; $total -gt 16; $total -= 16)
     {
@@ -24,5 +24,5 @@ function Dump-Binary {
     write-output "};"
 }
 
-Dump-Binary -filename $infection32 -label "infection32" | Out-File -FilePath $output -Encoding UTF8
-Dump-Binary -filename $infection64 -label "infection64" | Out-File -FilePath $output -Encoding UTF8 -Append
+Dump-Binary -filename $infection32 -label "INFECTION32" | Out-File -FilePath $output -Encoding UTF8
+Dump-Binary -filename $infection64 -label "INFECTION64" | Out-File -FilePath $output -Encoding UTF8 -Append
