@@ -155,7 +155,7 @@ get_proc_by_hash__found_function:
    jmp get_proc_by_hash__epilogue
 
 get_proc_by_hash__fnv321a_break:
-   cmp edx, [ebp+8]             ; check if our hash matches
+   cmp edx, [ebp+0xC]           ; check if our hash matches
    jz get_proc_by_hash__found_function
 
    mov ecx,[ebp+8]              ; restore AddressOfNames pointer
