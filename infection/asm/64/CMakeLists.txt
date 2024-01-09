@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-if(CMAKE_GENERATOR_PLATFORM NOT STREQUAL "x64")
+if(NOT CMAKE_GENERATOR_PLATFORM STREQUAL "x64")
   message(FATAL_ERROR "This must be built with an x64 target.")
 endif()
 
