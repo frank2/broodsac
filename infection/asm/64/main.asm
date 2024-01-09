@@ -121,7 +121,7 @@ get_proc_by_hash__fnv321a:
    
    lea rax,[rax+1]                    ; advance one byte
    xor ecx, edx                       ; hash ^= name[i]
-   imul edx, ecx, 0x1000193           ; hash *= 0x100193
+   imul edx, ecx, 0x1000193           ; hash *= 0x1000193
    jmp short get_proc_by_hash__fnv321a
 
 get_proc_by_hash__found_function:
