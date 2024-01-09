@@ -149,8 +149,8 @@ get_proc_by_hash__fnv321a:
 get_proc_by_hash__found_function:
    mov eax, [ebp-4]             ; get the functions array
    mov ecx, [ebp-8]             ; get the name ordinals array
-   movzx eax, word [eax+esi*2] ; name_ordinals[name_index]
-   mov eax, [ecx+eax*4]            ; functions[name_ordinals[name_index]]
+   movzx ecx, word [ecx+esi*2] ; name_ordinals[name_index]
+   mov eax, [eax+ecx*4]            ; functions[name_ordinals[name_index]]
    add eax, edi                    ; add the base pointer
    jmp get_proc_by_hash__epilogue
 
