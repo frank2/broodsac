@@ -10,14 +10,18 @@ function Dump-Binary {
 
     write-output ("const unsigned char {0}[] = {{" -f $label)
 
-    for ($total; $total > 16; $total -= 16)
+    for ($total; $total -gt 16; $total -= 16)
     {
-        $start = $total - $bytes.Length;
-        write-output ("\t{0}," -f ($bytes[$start..$start+15] -join ','))
+        $start = $bytes.Length - $total;
+        write-output ("`t{0}," -f ($bytes[$start..($start+15)] -join ', '))
     }
 
-    write-output ("\t{0}" -f ($bytes[$bytes.Length-$total..$bytes.Length] -join ','))
-    write-output "}};"
+    if ($total -gt 0)
+    {
+        write-output ("`t{0}" -f ($bytes[($bytes.Length-$total)..$bytes.Length] -join ', '))
+    }
+    
+    write-output "};"
 }
 
 Dump-Binary -filename $infection32 -label "infection32" | Out-File -FilePath $output -Encoding UTF8
