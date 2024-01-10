@@ -28,4 +28,5 @@ add_custom_command(TARGET infector_c
 
 target_include_directories(infector_c PUBLIC
   "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")
-target_compile_definitions(infector_c BROODSACDEBUG)
+target_compile_definitions(infector_c PUBLIC
+  BROODSACDEBUG)
