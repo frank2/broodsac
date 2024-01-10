@@ -22,7 +22,9 @@ function Dump-Binary {
     }
     
     write-output "};"
+    write-output ("static size_t {0}_SIZE = {1};" -f $label,$bytes.Length)
 }
 
+Write-Output "#include <stdint.h>" | Out-File -FilePath $output -Encoding UTF8
 Dump-Binary -filename $infection32 -label "INFECTION32" | Out-File -FilePath $output -Encoding UTF8
 Dump-Binary -filename $infection64 -label "INFECTION64" | Out-File -FilePath $output -Encoding UTF8 -Append
