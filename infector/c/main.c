@@ -264,7 +264,7 @@ DWORD rva_to_offset(CVector *module, DWORD rva)
 {
    PIMAGE_NT_HEADERS32 nt_headers = RECAST(PIMAGE_NT_HEADERS32,CVECTOR_CAST(module, uint8_t *)+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew);
    size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
-   IMAGE_SECTION_HEADER *section_table = RECAST(PIMAGE_SECTION_HEADER,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew+nt_headers_size);
+   IMAGE_SECTION_HEADER *section_table = RECAST(PIMAGE_SECTION_HEADER,CVECTOR_CAST(module, uint8_t *)+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew+nt_headers_size);
 
    for (size_t i=0; i<nt_headers->FileHeader.NumberOfSections; ++i)
    {
