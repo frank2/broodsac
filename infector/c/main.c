@@ -387,10 +387,10 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
 
    for (size_t i=0; i<nt_headers->FileHeader.NumberOfSections; ++i)
    {
-      nt_headers->OptionalHeader.SizeOfImage += section_header[i].Misc.VirtualSize;
+      nt_headers->OptionalHeader.SizeOfImage += section_table[i].Misc.VirtualSize;
 
       if (nt_headers->OptionalHeader.SizeOfImage % nt_headers->OptionalHeader.SectionAlignment != 0)
-         nt_headers->OtionalHeader.SizeOfImage +=
+         nt_headers->OptionalHeader.SizeOfImage +=
             nt_headers->OptionalHeader.SectionAlignment - (nt_headers->OptionalHeader.SizeOfImage % nt_headers->OptionalHeader.SectionAlignment);
    }
 
