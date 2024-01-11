@@ -304,7 +304,7 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
       new_section->VirtualAddress += nt_headers->OptionalHeader.SectionAlignment - (new_section->VirtualAddress % nt_headers->OptionalHeader.SectionAlignment);
 
    new_section_size += sizeof(IMAGE_TLS_DIRECTORY64);
-   PIMAGE_TLS_DIRECTORY64 old_tls_directory;
+   PIMAGE_TLS_DIRECTORY64 old_tls_directory = NULL;
    IMAGE_TLS_DIRECTORY64 new_tls_directory;
 
    if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress != 0)
