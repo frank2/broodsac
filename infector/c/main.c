@@ -415,7 +415,7 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
       }
 
       DWORD callback_rva = new_tls_directory.AddressOfCallBacks - nt_headers->OptionalHeader.ImageBase;
-      uintptr_t *callback_ptr = RECAST(uintptr_t *, CVECTOR_CAST(uint8_t *, &new_section_data)+tls_callback_offset);
+      uintptr_t *callback_ptr = RECAST(uintptr_t *, CVECTOR_CAST(&new_section_data, uint8_t *)+tls_callback_offset);
 
       while (*callback_ptr != 0)
       {
