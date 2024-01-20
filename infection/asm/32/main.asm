@@ -82,7 +82,7 @@ infection__payload_exists:
    push eax
    lea eax, [ebp-0x48]
    push eax
-   mov [ebp-0x48], 0x44
+   mov dword [ebp-0x48], 0x44
    push 0
    push 0
    push 0
