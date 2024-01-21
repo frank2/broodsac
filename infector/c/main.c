@@ -460,7 +460,7 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
       PIMAGE_BASE_RELOCATION base_relocation = RECAST(PIMAGE_BASE_RELOCATION, byte_module+reloc_offset);
 
       while (base_relocation->VirtualAddress != 0)
-         base_relocation = RECAST(PIMAGE_BASE_RELOCATION,RECAST(uint8_t *, base_relocation)+sizeof(DWORD)+sizeof(DWORD)+sizeof(WORD)*base_relocation->SizeOfBlock);
+         base_relocation = RECAST(PIMAGE_BASE_RELOCATION,RECAST(uint8_t *, base_relocation)+base_relocation->SizeOfBlock);
 
       base_relocation->VirtualAddress = CVECTOR_CAST(&relocations,DWORD *)[0] & 0xFFFFF000;
       printf("\t\tRelocating 0x%08x\n", base_relocation->VirtualAddress);
