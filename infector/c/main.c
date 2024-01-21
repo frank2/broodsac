@@ -455,7 +455,8 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
       }
 
       PIMAGE_BASE_RELOCATION base_relocation = RECAST(PIMAGE_BASE_RELOCATION,
-                                                      byte_module+nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
+                                                      byte_module+rva_to_offset(module,
+                                                                                nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress));
 
       while (base_relocation->VirtualAddress != 0)
          base_relocation = RECAST(PIMAGE_BASE_RELOCATION,RECAST(uint8_t *, base_relocation)+sizeof(DWORD)+sizeof(DWORD)+sizeof(WORD)*base_relocation->SizeOfBlock);
@@ -463,7 +464,7 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
       base_relocation->VirtualAddress = CVECTOR_CAST(&relocations,DWORD *)[0] & 0xFFFFF000;
       printf("\t\tRelocating 0x%08x\n", base_relocation->VirtualAddress);
       base_relocation->SizeOfBlock = relocations.elements * sizeof(WORD);
-      printf("\t\tNumber of relocations: %d\n", relocations.elements);
+      printf("\t\tNumber of relocations: %ll\n", relocations.elements);
 
       WORD *relocation_array = RECAST(WORD *,RECAST(uint8_t *,base_relocation)+sizeof(DWORD)*2);
 
