@@ -278,8 +278,18 @@ DWORD rva_to_offset(CVector *module, DWORD rva)
 void create_tls_relocations(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEADER *new_section, CVector *new_section_data, BOOL arch_switch)
 {
    uint8_t *byte_module = CVECTOR_CAST(module, uint8_t *);
-   PIMAGE_NT_HEADERS64 nt_headers = RECAST(PIMAGE_NT_HEADERS64,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew);
 
+   union
+   {
+      PIMAGE_NT_HEADERS64 nt64;
+      PIMAGE_NT_HEADERS32 nt32;
+   } nt_headers;
+
+   if (arch_switch)
+      nt_headers.nt64 = RECAST(PIMAGE_NT_HEADERS64,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew);
+   else
+      nt_headers.nt32 = RECAST(PIMAGE_NT_HEADERS32,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew);
+   
    union
    {
       PIMAGE_TLS_DIRECTORY64 tls64;
@@ -308,7 +318,7 @@ void create_tls_relocations(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEA
    /* create relocations for all the callbacks in the tls directory */
    if (arch_switch)
    {
-      DWORD callback_rva = tls_ptr.tls64->AddressOfCallBacks - nt_headers->OptionalHeader.ImageBase;
+      DWORD callback_rva = tls_ptr.tls64->AddressOfCallBacks - nt_headers.nt64->OptionalHeader.ImageBase;
       DWORD tls_callback_offset = callback_rva - new_section->VirtualAddress;
       uintptr_t *callback_ptr = RECAST(uintptr_t *, CVECTOR_CAST(new_section_data, uint8_t *)+tls_callback_offset);
 
@@ -321,7 +331,7 @@ void create_tls_relocations(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEA
    }
    else
    {
-      DWORD callback_rva = tls_ptr.tls32->AddressOfCallBacks - nt_headers->OptionalHeader.ImageBase;
+      DWORD callback_rva = tls_ptr.tls32->AddressOfCallBacks - nt_headers.nt32->OptionalHeader.ImageBase;
       DWORD tls_callback_offset = callback_rva - new_section->VirtualAddress;
       uint32_t *callback_ptr = RECAST(uint32_t *, CVECTOR_CAST(new_section_data, uint8_t *)+tls_callback_offset);
 
@@ -335,8 +345,21 @@ void create_tls_relocations(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEA
 
    /* determine the last relocation in the original relocation table */
    printf("\t\tRelocation RVA is 0x%08x\n", nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
-   DWORD reloc_offset = rva_to_offset(module,
-                                      nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
+   DWORD reloc_offset;
+
+   if (arch_switch)
+   {
+      printf("\t\tRelocation RVA is 0x%08x\n", nt_headers.nt64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
+      reloc_offset = rva_to_offset(module,
+                                   nt_headers.nt64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
+   }
+   else
+   {
+      printf("\t\tRelocation RVA is 0x%08x\n", nt_headers.nt32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
+      reloc_offset = rva_to_offset(module,
+                                   nt_headers.nt32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
+   }
+   
    printf("\t\tRelocation offset is 0x%08x\n", reloc_offset);
    PIMAGE_BASE_RELOCATION base_relocation = RECAST(PIMAGE_BASE_RELOCATION, byte_module+reloc_offset);
 
