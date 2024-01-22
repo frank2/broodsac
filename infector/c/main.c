@@ -344,7 +344,6 @@ void create_tls_relocations(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEA
    }
 
    /* determine the last relocation in the original relocation table */
-   printf("\t\tRelocation RVA is 0x%08x\n", nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
    DWORD reloc_offset;
 
    if (arch_switch)
@@ -368,7 +367,12 @@ void create_tls_relocations(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEA
 
    /* create a new relocation block */
    DWORD block_size = relocations.elements * sizeof(WORD) + sizeof(DWORD) * 2;
-   nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].Size += block_size;
+
+   if (arch_switch)
+      nt_headers.nt64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].Size += block_size;
+   else
+      nt_headers.nt32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].Size += block_size;
+   
    base_relocation->VirtualAddress = CVECTOR_CAST(&relocations,DWORD *)[0] & 0xFFFFF000;
    printf("\t\tRelocating 0x%08x\n", base_relocation->VirtualAddress);
    base_relocation->SizeOfBlock = block_size;
