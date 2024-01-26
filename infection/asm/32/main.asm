@@ -139,7 +139,7 @@ infection__end:
 
    ;; [ebp+4]: the string struct
 decrypt_string:
-   mov eax,[esp-4]
+   mov eax,[esp+4]
    push esi
    mov ecx,[eax]
    mov dl,[eax+4]
