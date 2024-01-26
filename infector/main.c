@@ -441,7 +441,7 @@ CVector create_32bit_tls_section(InfectorIAT *iat, CVector *module, IMAGE_SECTIO
    {
       old_tls_directory = RECAST(PIMAGE_TLS_DIRECTORY32,byte_module+rva_to_offset(module,
                                                                                   nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS].VirtualAddress));
-      iat->memcpy(&new_tls_directory, old_tls_directory, sizeof(IMAGE_TLS_DIRECTORY64));
+      iat->memcpy(&new_tls_directory, old_tls_directory, sizeof(IMAGE_TLS_DIRECTORY32));
    }
 
    /* create the tls data vector and the callback vector */
