@@ -5,13 +5,14 @@ param([string]$launch_command,
 function Encrypt-String {
     param([string]$str, [string]$label)
 
+    Write-Output $str
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($str);
     $total = $bytes.Length;
     $key = (Get-Random -Minimum 0x40 -Maximum 0xF0)
 
     Write-Output ("%macro {0} 0" -f $label)
     
-    for ($i; $i -lt $total; $i += 1)
+    for ($i=0; $i -lt $total; $i += 1)
     {
         $bytes[$i] = $bytes[$i] -xor $key; # this is stupid, go away powershell
     }
