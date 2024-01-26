@@ -35,4 +35,4 @@ function Encrypt-String {
 }
 
 Encrypt-String -str $launch_command -label "LAUNCH_COMMAND" | Out-File -FilePath $output -Encoding UTF8
-Encrypt-String -str $download_command -label "DOWNLOAD_COMMAND" | Out-File -FilePath $output -Encoding UTF8
+Encrypt-String -str $download_command -label "DOWNLOAD_COMMAND" | Out-File -FilePath $output -Encoding UTF8 -Append
