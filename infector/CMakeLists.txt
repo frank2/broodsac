@@ -12,14 +12,14 @@ add_custom_command(TARGET infector
   -f bin
   -o "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/infection32.bin"
   -D TLS
-  "${CMAKE_CURRENT_SOURCE_DIR}/../../infection/asm/32/main.asm")
+  "${CMAKE_CURRENT_SOURCE_DIR}/../infection/asm/32/main.asm")
 add_custom_command(TARGET infector
   PRE_BUILD
   COMMAND ${CMAKE_ASM_NASM_COMPILER} ARGS
   -f bin
   -o "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/infection64.bin"
   -D TLS
-  "${CMAKE_CURRENT_SOURCE_DIR}/../../infection/asm/64/main.asm")
+  "${CMAKE_CURRENT_SOURCE_DIR}/../infection/asm/64/main.asm")
 add_custom_command(TARGET infector
   PRE_BUILD
   COMMAND powershell ARGS
