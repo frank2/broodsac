@@ -30,6 +30,6 @@ int main(int argc, char *argv[])
 {
    printf("* tls_init: %d\n", TLS_INIT);
    puts("* tls");
-   puts("* reloc);
+   puts("* reloc");
    return 0;
 }
