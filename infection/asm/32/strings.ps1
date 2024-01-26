@@ -5,7 +5,6 @@ param([string]$launch_command,
 function Encrypt-String {
     param([string]$str, [string]$label)
 
-    Write-Output $str
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($str);
     $total = $bytes.Length;
     $key = (Get-Random -Minimum 0x40 -Maximum 0xF0)
@@ -23,16 +22,16 @@ function Encrypt-String {
     for ($total; $total -gt 16; $total -= 16)
     {
         $start = $bytes.Length - $total;
-        write-output ("    db {0}," -f ($bytes[$start..($start+15)] -join ', '))
+        Write-Output ("    db {0}," -f ($bytes[$start..($start+15)] -join ', '))
     }
 
     if ($total -gt 0)
     {
-        write-output ("    db {0}," -f ($bytes[($bytes.Length-$total)..$bytes.Length] -join ', '))
+        Write-Output ("    db {0}," -f ($bytes[($bytes.Length-$total)..$bytes.Length] -join ', '))
     }
 
-    write-output ("    db 0")
-    write-output ("%endmacro")
+    Write-Output ("    db 0")
+    Write-Output ("%endmacro")
 }
 
 Encrypt-String -str $launch_command -label "LAUNCH_COMMAND" | Out-File -FilePath $output -Encoding UTF8
