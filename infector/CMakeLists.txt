@@ -5,7 +5,7 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 option(BROODSAC_DEBUG "Turn on debugging for Broodsac" OFF)
 set(BROODSAC_INFECTABLES "" CACHE STRING "Set the folder for Broodsac to infect, only relevant with BROODSAC_DEBUG")
 
-add_executable(infector WIN32 main.c)
+add_executable(infector main.c)
 add_custom_command(TARGET infector
   PRE_BUILD
   COMMAND ${CMAKE_ASM_NASM_COMPILER} ARGS

