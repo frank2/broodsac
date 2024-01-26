@@ -13,7 +13,7 @@ function Encrypt-String {
     
     for ($i; $i -lt $total; $i += 1)
     {
-        $bytes[$i] ^= $key;
+        $bytes[$i] = $bytes[$i] -xor $key; # this is stupid, go away powershell
     }
     
     Write-Output ("    dd {0}" -f $total)
