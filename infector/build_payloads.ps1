@@ -18,10 +18,10 @@ Push-Location $payload32
 
 if (!(Test-Path -Path ("{0}/CMakeCache.txt" -f $payload32) -PathType Leaf))
 {
-    Invoke-Expression ("{0} -A Win32 {1}" -f $cmake,("{0}/32" -f $infection))
+    Invoke-Expression ("'{0}' -A Win32 '{1}'" -f $cmake,("{0}/32" -f $infection))
 }
 
-Invoke-Expression ("{0} --build ./ --config {1}" -f $cmake,$config)
+Invoke-Expression ("'{0}' --build ./ --config '{1}'" -f $cmake,$config)
 Pop-Location
 
 if (!(Test-Path -Path $payload64))
@@ -33,9 +33,9 @@ Push-Location $payload64
 
 if (!(Test-Path -Path ("{0}/CMakeCache.txt" -f $payload64) -PathType Leaf))
 {
-    Invoke-Expression ("{0} -A x64 {1}" -f $cmake,("{0}/64" -f $infection))
+    Invoke-Expression ("'{0}' -A x64 '{1}'" -f $cmake,("{0}/64" -f $infection))
 }
 
-Invoke-Expression ("{0} --build ./ --config {1}" -f $cmake,$config)
+Invoke-Expression ("'{0}' --build ./ --config '{1}'" -f $cmake,$config)
 Pop-Location
 
