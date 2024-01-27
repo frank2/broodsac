@@ -8,14 +8,10 @@ set(BROODSAC_INFECTABLES "" CACHE STRING "Set the folder for Broodsac to infect,
 include(ExternalProject)
 ExternalProject_Add(payload_32_builder
   SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../infection/asm/32"
-  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/infection/32"
-  CMAKE_ARGS
-  -A Win32)
+  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/infection/32")
 ExternalProject_Add(payload_64_builder
   SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../infection/asm/64"
-  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/infection/64"
-  CMAKE_ARGS
-  -A x64)
+  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/infection/64")
 
 add_executable(infector main.c)
 add_dependencies(infector payload_32_builder payload_64_builder)
