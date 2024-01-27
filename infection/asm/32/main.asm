@@ -174,7 +174,8 @@ infection__end:
    ret
 %endif
 
-   ;; [ebp+4]: the string struct
+   ;; [ebp+8]: the string struct
+   ;; [ebp+0xC]: the output address
 decrypt_string:
    push ebp
    mov ebp, esp

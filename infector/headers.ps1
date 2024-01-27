@@ -26,5 +26,5 @@ function Dump-Binary {
 }
 
 Write-Output "#include <stdint.h>" | Out-File -FilePath $output -Encoding UTF8
-Dump-Binary -filename $infection32 -label "INFECTION32" | Out-File -FilePath $output -Encoding UTF8
+Dump-Binary -filename $infection32 -label "INFECTION32" | Out-File -FilePath $output -Encoding UTF8 -Append
 Dump-Binary -filename $infection64 -label "INFECTION64" | Out-File -FilePath $output -Encoding UTF8 -Append
