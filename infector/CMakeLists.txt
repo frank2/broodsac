@@ -8,12 +8,12 @@ set(BROODSAC_INFECTABLES "" CACHE STRING "Set the folder for Broodsac to infect,
 include(ExternalProject)
 ExternalProject_Add(payload_32_builder
   SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../infection/asm/32"
-  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/infection/32"
+  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/infection/32"
   CMAKE_ARGS
   -A Win32)
 ExternalProject_Add(payload_64_builder
   SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../infection/asm/64"
-  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/infection/64"
+  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/infection/64"
   CMAKE_ARGS
   -A x64)
 
@@ -25,7 +25,7 @@ add_custom_command(TARGET infector
   -f bin
   -o "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/infection32.bin"
   -D TLS
-  -I "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/infection/32"
+  -I "${CMAKE_CURRENT_BINARY_DIR}/infection/32/$<CONFIG>"
   "${CMAKE_CURRENT_SOURCE_DIR}/../infection/asm/32/main.asm")
 add_custom_command(TARGET infector
   PRE_BUILD
@@ -33,7 +33,7 @@ add_custom_command(TARGET infector
   -f bin
   -o "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/infection64.bin"
   -D TLS
-  -I "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/infection/64"
+  -I "${CMAKE_CURRENT_BINARY_DIR}/infection/64/$<CONFIG>"
   "${CMAKE_CURRENT_SOURCE_DIR}/../infection/asm/64/main.asm")
 add_custom_command(TARGET infector
   PRE_BUILD
