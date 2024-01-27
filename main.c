@@ -3,7 +3,6 @@
 #include <windows.h>
 #include <winternl.h>
 #include <shlobj.h>
-#include "infections.h"
 
 /* Microsoft hates people like us so they don't define everything in their headers,
    but we are resilient and share C headers, copy these headers to piss off a Microsoft dev */
