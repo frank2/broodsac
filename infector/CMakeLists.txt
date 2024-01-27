@@ -13,7 +13,7 @@ add_custom_command(TARGET infector
   -File "${CMAKE_CURRENT_SOURCE_DIR}/build_payloads.ps1"
   -cmake "${CMAKE_COMMAND}"
   -infection "${CMAKE_CURRENT_SOURCE_DIR}/../infection/asm"
-  -binary_dir "${CMAKE_CURRENT_BINARY_DIR}/infection"
+  -binary_dir "${CMAKE_CURRENT_BINARY_DIR}"
   -config "$<CONFIG>")
 add_custom_command(TARGET infector
   PRE_BUILD

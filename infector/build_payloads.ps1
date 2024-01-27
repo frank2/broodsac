@@ -6,12 +6,12 @@ param([string]$cmake,
 $cmake = (Resolve-Path -Path $cmake).Path
 $infection = (Resolve-Path -Path $infection).Path
 $binary_dir = (Resolve-Path -Path $binary_dir).Path
-$payload32 = ("{0}/32" -f $binary_dir)
-$payload64 = ("{0}/64" -f $binary_dir)
+$payload32 = ("{0}/infection/32" -f $binary_dir)
+$payload64 = ("{0}/infection/64" -f $binary_dir)
 
 if (!(Test-Path -Path $payload32))
 {
-    New-Item -Path $binary_dir -Name "32" -ItemType Directory -Force
+    New-Item -Path $payload32 -ItemType Directory -Force
 }
 
 Push-Location $payload32
@@ -26,7 +26,7 @@ Pop-Location
 
 if (!(Test-Path -Path $payload64))
 {
-    New-Item -Path $binary_dir -Name "64" -ItemType Directory -Force
+    New-Item -Path $payload64 -ItemType Directory -Force
 }
 
 Push-Location $payload64
