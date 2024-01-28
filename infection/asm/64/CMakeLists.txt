@@ -21,6 +21,9 @@ add_custom_command(TARGET infection_asm_64
   -output "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/infection_strings.asm"
   VERBATIM)
 
+target_include_directories(infection_asm_64 PUBLIC
+  "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")
+
 if (INFECTION_STANDALONE)
   target_link_options(infection_asm_64 PUBLIC "LINKER:/ENTRY:main")
   target_compile_definitions(infection_asm_64 PUBLIC
@@ -29,6 +32,3 @@ else()
   target_compile_definitions(infection_asm_64 PUBLIC
     INFECTION_TLS)
 endif()
-
-target_include_directories(infection_asm_64 PUBLIC
-  "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")
