@@ -28,7 +28,4 @@ if (INFECTION_STANDALONE)
   target_link_options(infection_asm_32 PUBLIC "LINKER:/ENTRY:main")
   target_compile_definitions(infection_asm_32 PUBLIC
     INFECTION_STANDALONE)
-else()
-  target_compile_definitions(infection_asm_32 PUBLIC
-    INFECTION_TLS)
 endif()

